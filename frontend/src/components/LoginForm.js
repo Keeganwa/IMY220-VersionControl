@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authAPI } from '../services/api';
 
 function LoginForm() {
   const navigate = useNavigate();
@@ -8,6 +9,7 @@ function LoginForm() {
     password: ''
   });
   const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const validateForm = () => {
     const newErrors = {};
@@ -45,32 +47,43 @@ function LoginForm() {
     }
   };
 
+  // _____________________________________________________________
+  // MARKS: Real API Login Integration
+  // Connects to backend authentication endpoint
+  // Stores JWT token and user data on succesful login
+  // _____________________________________________________________
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      try {
-        const response = await fetch('http://localhost:5000/api/auth/signin', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData)
-        });
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      // Call real API instead of dummy endpoint
+      const response = await authAPI.signin(formData);
+      
+      if (response.success) {
+        // Store authentication data
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('userId', response.user.id);
+        localStorage.setItem('username', response.user.username);
         
-        const data = await response.json();
+        console.log('Login succesful:', response.user.username);
         
-        if (data.success) {
-          // Store token in localStorage
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('userId', data.user.id);
-          // Navigate to home
-          navigate('/home');
-        }
-      } catch (error) {
-        console.error('Login error:', error);
-        setErrors({ submit: 'Failed to login. Please try again.' });
+        // Navigate to home page
+        navigate('/home');
       }
+    } catch (error) {
+      console.error('Login error:', error);
+      setErrors({ 
+        submit: error.message || 'Failed to login. Please check your credentals.' 
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -87,6 +100,7 @@ function LoginForm() {
             value={formData.email}
             onChange={handleChange}
             placeholder="Enter your email"
+            disabled={isLoading}
           />
           {errors.email && <div className="error-message">{errors.email}</div>}
         </div>
@@ -100,14 +114,20 @@ function LoginForm() {
             value={formData.password}
             onChange={handleChange}
             placeholder="Enter your password"
+            disabled={isLoading}
           />
           {errors.password && <div className="error-message">{errors.password}</div>}
         </div>
 
         {errors.submit && <div className="error-message">{errors.submit}</div>}
 
-        <button type="submit" className="btn btn-secondary" style={{width: '100%', marginTop: '20px'}}>
-          Sign In
+        <button 
+          type="submit" 
+          className="btn btn-secondary" 
+          style={{width: '100%', marginTop: '20px'}}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Signing In...' : 'Sign In'}
         </button>
       </form>
     </div>

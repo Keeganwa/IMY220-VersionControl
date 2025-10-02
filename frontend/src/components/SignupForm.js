@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authAPI } from '../services/api';
 
 function SignupForm() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ function SignupForm() {
     occupation: ''
   });
   const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const validateForm = () => {
     const newErrors = {};
@@ -71,32 +73,54 @@ function SignupForm() {
     }
   };
 
+  // _____________________________________________________________
+  // MARKS: Real API Registration Integration
+  // Connects to backend user creation endpoint
+  // Creates new user acount and logs them in automaticaly
+  // _____________________________________________________________
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      try {
-        const response = await fetch('http://localhost:5000/api/auth/signup', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData)
-        });
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      // Prepare data for API (exclude confirmPassword)
+      const { confirmPassword, ...apiData } = formData;
+      
+      // Call real API instead of dummy endpoint
+      const response = await authAPI.signup(apiData);
+      
+      if (response.success) {
+        // Store authentication data
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('userId', response.user.id);
+        localStorage.setItem('username', response.user.username);
         
-        const data = await response.json();
+        console.log('Registration succesful:', response.user.username);
         
-        if (data.success) {
-          // Store token in localStorage
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('userId', data.user.id);
-          // Navigate to home
-          navigate('/home');
-        }
-      } catch (error) {
-        console.error('Signup error:', error);
-        setErrors({ submit: 'Failed to register. Please try again.' });
+        // Navigate to home page
+        navigate('/home');
       }
+    } catch (error) {
+      console.error('Signup error:', error);
+      
+      // Handle specific error messages from backend
+      let errorMessage = 'Failed to register. Please try again.';
+      
+      if (error.message.includes('already exists')) {
+        errorMessage = 'Username or email already taken.';
+      } else if (error.message.includes('validation')) {
+        errorMessage = 'Please check your information and try again.';
+      }
+      
+      setErrors({ submit: errorMessage });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -113,6 +137,7 @@ function SignupForm() {
             value={formData.username}
             onChange={handleChange}
             placeholder="Choose a username"
+            disabled={isLoading}
           />
           {errors.username && <div className="error-message">{errors.username}</div>}
         </div>
@@ -126,6 +151,7 @@ function SignupForm() {
             value={formData.email}
             onChange={handleChange}
             placeholder="Enter your email"
+            disabled={isLoading}
           />
           {errors.email && <div className="error-message">{errors.email}</div>}
         </div>
@@ -139,6 +165,7 @@ function SignupForm() {
             value={formData.password}
             onChange={handleChange}
             placeholder="Create a password"
+            disabled={isLoading}
           />
           {errors.password && <div className="error-message">{errors.password}</div>}
         </div>
@@ -152,6 +179,7 @@ function SignupForm() {
             value={formData.confirmPassword}
             onChange={handleChange}
             placeholder="Confirm your password"
+            disabled={isLoading}
           />
           {errors.confirmPassword && <div className="error-message">{errors.confirmPassword}</div>}
         </div>
@@ -164,6 +192,7 @@ function SignupForm() {
             name="dateOfBirth"
             value={formData.dateOfBirth}
             onChange={handleChange}
+            disabled={isLoading}
           />
           {errors.dateOfBirth && <div className="error-message">{errors.dateOfBirth}</div>}
         </div>
@@ -177,14 +206,20 @@ function SignupForm() {
             value={formData.occupation}
             onChange={handleChange}
             placeholder="e.g., Software Developer"
+            disabled={isLoading}
           />
           {errors.occupation && <div className="error-message">{errors.occupation}</div>}
         </div>
 
         {errors.submit && <div className="error-message">{errors.submit}</div>}
 
-        <button type="submit" className="btn btn-secondary" style={{width: '100%', marginTop: '20px'}}>
-          Register
+        <button 
+          type="submit" 
+          className="btn btn-secondary" 
+          style={{width: '100%', marginTop: '20px'}}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Creating Account...' : 'Register'}
         </button>
       </form>
     </div>
