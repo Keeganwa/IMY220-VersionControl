@@ -1,0 +1,29 @@
+FROM node:18
+
+WORKDIR /app
+
+# Copy backend
+COPY backend/package*.json ./backend/
+WORKDIR /app/backend
+RUN npm install
+
+# Copy frontend
+WORKDIR /app
+COPY frontend/package*.json ./frontend/
+WORKDIR /app/frontend
+RUN npm install
+
+# Copy all source files
+WORKDIR /app
+COPY . .
+
+# Build frontend
+WORKDIR /app/frontend
+RUN npm run build
+
+# Expose ports
+EXPOSE 3000 5000
+
+# Start both servers
+WORKDIR /app
+CMD ["sh", "-c", "cd backend && npm start & cd frontend && npm start"]
