@@ -2,12 +2,12 @@ FROM node:18
 
 WORKDIR /app
 
-# Copy backend
+# Copy backend files
 COPY backend/package*.json ./backend/
 WORKDIR /app/backend
 RUN npm install
 
-# Copy frontend
+# Copy frontend files
 WORKDIR /app
 COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
