@@ -22,7 +22,7 @@ WORKDIR /app/frontend
 RUN npm run build
 
 # Expose ports
-EXPOSE 3000 5000
+EXPOSE 4040 5000
 
 # Start both servers
 WORKDIR /app

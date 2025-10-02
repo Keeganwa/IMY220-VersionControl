@@ -1,18 +1,20 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import SplashPage from './pages/SplashPage';
+import HomePage from './pages/HomePage';
+import ProfilePage from './pages/ProfilePage';
+import ProjectPage from './pages/ProjectPage';
+import './styles.css';
 
 function App() {
   return (
     <Router>
-      <div>
-        <h1>Codebase Studio</h1>
-        <Routes>
-          <Route path="/" element={<div>Splash Page</div>} />
-          <Route path="/home" element={<div>Home Page</div>} />
-          <Route path="/profile/:id" element={<div>Profile Page</div>} />
-          <Route path="/project/:id" element={<div>Project Page</div>} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/" element={<SplashPage />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/profile/:id" element={<ProfilePage />} />
+        <Route path="/project/:id" element={<ProjectPage />} />
+      </Routes>
     </Router>
   );
 }
