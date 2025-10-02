@@ -1,3 +1,5 @@
+
+
 // _____________________________________________________________
 // MARKS: User Management Routes
 // Handles user profile CRUD operations and friend managment
@@ -230,6 +232,56 @@ router.post('/accept-friend/:id', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error accepting friend request'
+    });
+  }
+});
+
+// _____________________________________________________________
+// MARKS: Unfriend User Endpoint
+// DELETE /api/users/unfriend/:id - Remove friend relationship
+// _____________________________________________________________
+router.delete('/unfriend/:id', auth, async (req, res) => {
+  try {
+    const friendId = req.params.id;
+    const currentUser = await User.findById(req.user._id);
+    const friend = await User.findById(friendId);
+
+    if (!friend) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if they are actually friends
+    if (!currentUser.friends.includes(friendId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'You are not friends with this user'
+      });
+    }
+
+    // Remove each other from friends lists
+    currentUser.friends = currentUser.friends.filter(
+      id => id.toString() !== friendId
+    );
+    friend.friends = friend.friends.filter(
+      id => id.toString() !== currentUser._id.toString()
+    );
+
+    await currentUser.save();
+    await friend.save();
+
+    res.json({
+      success: true,
+      message: 'Friend removed succesfully'
+    });
+
+  } catch (error) {
+    console.error('Unfriend error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error removing friend'
     });
   }
 });

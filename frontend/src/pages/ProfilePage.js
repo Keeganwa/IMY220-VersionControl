@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import ProjectPreview from '../components/ProjectPreview';
 import CreateProject from '../components/CreateProject';
-import { userAPI, activityAPI, apiUtils } from '../services/api';
+import EditProfile from '../components/EditProfile';
+import { userAPI, activityAPI, projectAPI, apiUtils } from '../services/api';
 
 function ProfilePage() {
   const { id } = useParams();
@@ -94,6 +95,34 @@ function ProfilePage() {
     } catch (error) {
       console.error('Error sending friend request:', error);
       alert('Failed to send friend request: ' + error.message);
+    }
+  };
+
+  const handleUnfriend = async () => {
+    if (window.confirm('Are you sure you want to unfriend this user?')) {
+      try {
+        await userAPI.unfriend(id);
+        alert('User unfriended succesfully');
+        // Refresh profile data
+        window.location.reload();
+      } catch (error) {
+        console.error('Error unfriending user:', error);
+        alert('Failed to unfriend user: ' + error.message);
+      }
+    }
+  };
+
+  const handleDeleteProject = async (projectId) => {
+    if (window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+      try {
+        await projectAPI.deleteProject(projectId);
+        alert('Project deleted succesfully');
+        // Refresh profile data
+        window.location.reload();
+      } catch (error) {
+        console.error('Error deleting project:', error);
+        alert('Failed to delete project: ' + error.message);
+      }
     }
   };
 
@@ -198,7 +227,7 @@ function ProfilePage() {
                       className="btn btn-secondary" 
                       onClick={() => setIsEditing(!isEditing)}
                     >
-                      Edit Profile
+                      {isEditing ? 'Cancel Edit' : 'Edit Profile'}
                     </button>
                     <button className="btn btn-primary">
                       View Friends ({profile.friends?.length || 0})
@@ -214,18 +243,40 @@ function ProfilePage() {
                     </button>
                   </>
                 ) : (
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={handleSendFriendRequest}
-                  >
-                    Send Friend Request
-                  </button>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                    <button 
+                      className="btn btn-secondary"
+                      onClick={handleSendFriendRequest}
+                    >
+                      Send Friend Request
+                    </button>
+                    {profile.friends?.some(friend => friend._id === currentUserId) && (
+                      <button 
+                        className="btn btn-primary"
+                        onClick={handleUnfriend}
+                        style={{backgroundColor: '#ff6b6b'}}
+                      >
+                        Unfriend
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
           </aside>
 
           <div className="profile-main">
+            {isEditing && isOwnProfile && (
+              <EditProfile 
+                user={profile}
+                onClose={() => setIsEditing(false)}
+                onSave={(updatedUser) => {
+                  setProfile(updatedUser);
+                  setIsEditing(false);
+                }}
+              />
+            )}
+
             {showCreateProject && isOwnProfile && (
               <CreateProject 
                 onClose={() => setShowCreateProject(false)}
@@ -233,7 +284,7 @@ function ProfilePage() {
               />
             )}
 
-            {!showCreateProject && (
+            {!showCreateProject && !isEditing && (
               <>
                 <div style={{marginBottom: '30px'}}>
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
@@ -257,7 +308,25 @@ function ProfilePage() {
                       </div>
                     ) : (
                       userProjects.map(project => (
-                        <ProjectPreview key={project._id} project={project} />
+                        <div key={project._id} style={{position: 'relative'}}>
+                          <ProjectPreview project={project} />
+                          {isOwnProfile && project.creator === currentUserId && (
+                            <button 
+                              className="btn btn-primary"
+                              style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                padding: '5px 10px',
+                                fontSize: '12px',
+                                backgroundColor: '#ff6b6b'
+                              }}
+                              onClick={() => handleDeleteProject(project._id)}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       ))
                     )}
                   </div>

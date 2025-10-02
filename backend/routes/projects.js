@@ -1,3 +1,5 @@
+// backend/routes/projects.js
+
 // _____________________________________________________________
 // MARKS: Project Management Routes
 // Handles project CRUD operations, file managment, and colaboration
@@ -7,6 +9,7 @@
 const express = require('express');
 const Project = require('../models/Project');
 const Activity = require('../models/Activity');
+const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -209,6 +212,60 @@ router.put('/:id', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error updating project'
+    });
+  }
+});
+
+// _____________________________________________________________
+// MARKS: Delete Project Endpoint
+// DELETE /api/projects/:id - Deletes a project (creator only)
+// _____________________________________________________________
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Only creator can delete project
+    if (project.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only project creator can delete project'
+      });
+    }
+
+    // Remove project from creator's owned projects
+    await User.findByIdAndUpdate(req.user._id, {
+      $pull: { ownedProjects: project._id }
+    });
+
+    // Remove project from collaborators' shared projects
+    await User.updateMany(
+      { _id: { $in: project.collaborators } },
+      { $pull: { sharedProjects: project._id } }
+    );
+
+    // Delete all activities related to this project
+    await Activity.deleteMany({ project: project._id });
+
+    // Delete the project
+    await Project.findByIdAndDelete(req.params.id);
+
+    res.json({
+      success: true,
+      message: 'Project deleted succesfully'
+    });
+
+  } catch (error) {
+    console.error('Delete project error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting project'
     });
   }
 });

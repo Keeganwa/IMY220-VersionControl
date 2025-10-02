@@ -24,7 +24,7 @@ function Header() {
         }
       } catch (error) {
         console.error('Error fetching current user:', error);
-        // If token is invalid, clear it
+     
         apiUtils.logout();
       } finally {
         setIsLoading(false);
@@ -35,7 +35,7 @@ function Header() {
   }, []);
 
   const handleSignOut = () => {
-    // Clear authentication data
+   
     apiUtils.logout();
     setCurrentUser(null);
     
@@ -47,12 +47,38 @@ function Header() {
     return (
       <header className="header">
         <div className="logo-section">
-          <div className="logo">
-            <span style={{fontSize: '24px'}}>🔧</span>
-          </div>
-          <div className="logo-text">
-            <h1>Codebase</h1>
-            <span className="studio">STUDIO</span>
+          <div>
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              <div className="logo">
+                <img 
+                  src="/assets/images/logo.png" 
+                  alt="Codebase Studio Logo" 
+                  style={{
+                    width: '50px', 
+                    height: '50px', 
+                    objectFit: 'contain'
+                  }}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }}
+                />
+                <span style={{fontSize: '24px', display: 'none'}}>🔧</span>
+              </div>
+              <div className="logo-text">
+                <h1>Codebase</h1>
+                <span className="studio">STUDIO</span>
+              </div>
+            </div>
+            <p style={{
+              color: '#d4ff00', 
+              fontSize: '16px', 
+              fontWeight: '500', 
+              marginTop: '8px',
+              marginLeft: '60px'
+            }}>
+              Version Control and Cooperation Platform!
+            </p>
           </div>
         </div>
         <nav className="nav-buttons">
@@ -66,12 +92,38 @@ function Header() {
     <>
       <header className="header">
         <div className="logo-section">
-          <div className="logo">
-            <span style={{fontSize: '24px'}}>🔧</span>
-          </div>
-          <div className="logo-text">
-            <h1>Codebase</h1>
-            <span className="studio">STUDIO</span>
+          <div>
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              <div className="logo">
+                <img 
+                  src="/assets/images/logo.png" 
+                  alt="Codebase Studio Logo" 
+                  style={{
+                    width: '50px', 
+                    height: '50px', 
+                    objectFit: 'contain'
+                  }}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }}
+                />
+                <span style={{fontSize: '24px', display: 'none'}}>🔧</span>
+              </div>
+              <div className="logo-text">
+                <h1>Codebase</h1>
+                <span className="studio">STUDIO</span>
+              </div>
+            </div>
+            <p style={{
+              color: '#d4ff00', 
+              fontSize: '16px', 
+              fontWeight: '500', 
+              marginTop: '8px',
+              marginLeft: '60px'
+            }}>
+              Version Control and Cooperation Platform!
+            </p>
           </div>
         </div>
         <nav className="nav-buttons">

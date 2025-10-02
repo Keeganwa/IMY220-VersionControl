@@ -1,3 +1,4 @@
+
 // _____________________________________________________________
 // MARKS: Frontend API Service Layer
 // Centralized API calls to backend endpoints
@@ -104,6 +105,13 @@ export const userAPI = {
     return await makeRequest(`/users/accept-friend/${userId}`, {
       method: 'POST'
     });
+  },
+
+  // Unfriend user
+  unfriend: async (userId) => {
+    return await makeRequest(`/users/unfriend/${userId}`, {
+      method: 'DELETE'
+    });
   }
 };
 
@@ -140,6 +148,13 @@ export const projectAPI = {
     return await makeRequest(`/projects/${projectId}`, {
       method: 'PUT',
       body: JSON.stringify(projectData)
+    });
+  },
+
+  // Delete project
+  deleteProject: async (projectId) => {
+    return await makeRequest(`/projects/${projectId}`, {
+      method: 'DELETE'
     });
   },
 
