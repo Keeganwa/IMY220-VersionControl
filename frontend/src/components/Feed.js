@@ -9,7 +9,7 @@ function Feed() {
   const [error, setError] = useState(null);
 
   // _____________________________________________________________
-  // MARKS: Real Data Fetching from Backend
+  // Real Data Fetching from Backend
   // Replaces dummy data with actual API calls to get projects
   // Fetches diferent feeds based on selected tab
   // _____________________________________________________________
@@ -42,11 +42,13 @@ function Feed() {
     setActiveTab(newTab);
     // fetchProjects will be called by useEffect when activeTab changes
   };
+//--------------------------------------------------------------
+
+
 
   // _____________________________________________________________
-  // MARKS: Loading and Error States
-  // Provides user fedback during data fetching
-  // _____________________________________________________________
+  //  Loading and Error States
+  // _______________________________________
   if (isLoading) {
     return (
       <div className="feed-container">

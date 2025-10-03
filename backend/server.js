@@ -1,32 +1,22 @@
 // _____________________________________________________________
-// MARKS: Main Server Configuration
-// Express server setup with MongoDB connection and route handling
-// Includes middleware for CORS, JSON parsing, and authentication
-// _____________________________________________________________
+// Main Server
+// _________________________________________________________
 
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
-// Load environment variables
+// Load .env 
 dotenv.config();
 
-// Initialize Express app
+// Init
 const app = express();
-
-// _____________________________________________________________
-// MARKS: Database Connection
-// Connect to MongoDB using connection string from .env file
-// _____________________________________________________________
 connectDB();
 
-// _____________________________________________________________
-// MARKS: Middleware Configuration
-// Set up CORS, JSON parsing, and request logging
-// _____________________________________________________________
+// Set up CORS, JSON parsing, and request logging(Help Ertror)
 
-// Enable CORS for frontend communication
+
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? 'http://localhost:4040' 
@@ -34,38 +24,35 @@ app.use(cors({
   credentials: true
 }));
 
-// Parse JSON requests
+
+
 app.use(express.json({ limit: '10mb' }));
-
-// Parse URL-encoded requests
 app.use(express.urlencoded({ extended: true }));
-
-// Request logging middleware for debuging
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
 // _____________________________________________________________
-// MARKS: API Routes Configuration
-// Mount all route handlers with /api prefix
+// API Routes Config
 // _____________________________________________________________
 
-// Import route modules
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const projectRoutes = require('./routes/projects');
 const activityRoutes = require('./routes/activities');
 
-// Mount routes
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/activities', activityRoutes);
+//--------------------------------------------------------------
+
+
 
 // _____________________________________________________________
-// MARKS: Health Check Endpoint
-// Simple endpoint to verify server is runing correctly
+//  Health Check 
 // _____________________________________________________________
 app.get('/api/health', (req, res) => {
   res.json({
@@ -76,9 +63,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+//--------------------------------------------------------------
+
 // _____________________________________________________________
-// MARKS: 404 Handler
-// Handle requests to non-existent endpoints
+//  404 Handler
 // _____________________________________________________________
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
@@ -92,8 +80,7 @@ app.use((req, res, next) => {
 });
 
 // _____________________________________________________________
-// MARKS: Global Error Handler
-// Catch all errors and return apropriate responses
+//  Global Error Handler
 // _____________________________________________________________
 app.use((error, req, res, next) => {
   console.error('Global error handler:', error);
@@ -124,10 +111,12 @@ app.use((error, req, res, next) => {
     ...(process.env.NODE_ENV === 'development' && { error: error.message })
   });
 });
+//--------------------------------------------------------------
+
+
 
 // _____________________________________________________________
-// MARKS: Server Startup
-// Start the Express server on configured port
+//                        Server Startup
 // _____________________________________________________________
 const PORT = process.env.PORT || 5000;
 
@@ -138,8 +127,8 @@ app.listen(PORT, () => {
 });
 
 // _____________________________________________________________
-// MARKS: Graceful Shutdown
-// Handle process termination gracefuly
+//       Shutdown
+
 // _____________________________________________________________
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefuly...');

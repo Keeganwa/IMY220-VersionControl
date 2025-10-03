@@ -9,9 +9,7 @@ function ProjectPreview({ project }) {
   };
 
   // _____________________________________________________________
-  // MARKS: Real Project Data Display
-  // Shows actual project information from MongoDB
-  // Handles diferent data structures from backend API
+  //Real Project Data Display
   // _____________________________________________________________
   
   // Format date for display

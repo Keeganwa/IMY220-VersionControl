@@ -1,8 +1,7 @@
 
 // _____________________________________________________________
-// MARKS: Frontend API Service Layer
-// Centralized API calls to backend endpoints
-// Handles authentication, projects, users, and activites
+// Frontend API Services
+// Central API calls
 // _____________________________________________________________
 
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -41,8 +40,8 @@ const makeRequest = async (url, options = {}) => {
 };
 
 // _____________________________________________________________
-// MARKS: Authentication API Calls
-// Login, signup, and user profile managment
+//  Authentication 
+
 // _____________________________________________________________
 
 export const authAPI = {
@@ -67,10 +66,10 @@ export const authAPI = {
     return await makeRequest('/auth/me');
   }
 };
-
+//--------------------------------------------------------------
 // _____________________________________________________________
-// MARKS: User Management API Calls
-// User profiles, friend requests, and user search
+// User Management 
+
 // _____________________________________________________________
 
 export const userAPI = {
@@ -114,10 +113,12 @@ export const userAPI = {
     });
   }
 };
+//--------------------------------------------------------------
+
+
 
 // _____________________________________________________________
-// MARKS: Project Management API Calls
-// Project CRUD operations, checkout/checkin, and colaboration
+//  Project Management
 // _____________________________________________________________
 
 export const projectAPI = {
@@ -143,6 +144,7 @@ export const projectAPI = {
     });
   },
 
+
   // Update project
   updateProject: async (projectId, projectData) => {
     return await makeRequest(`/projects/${projectId}`, {
@@ -150,6 +152,10 @@ export const projectAPI = {
       body: JSON.stringify(projectData)
     });
   },
+
+
+
+
 
   // Delete project
   deleteProject: async (projectId) => {
@@ -165,6 +171,7 @@ export const projectAPI = {
     });
   },
 
+
   // Checkin project with changes
   checkinProject: async (projectId, checkinData) => {
     return await makeRequest(`/projects/${projectId}/checkin`, {
@@ -173,10 +180,10 @@ export const projectAPI = {
     });
   }
 };
-
+//--------------------------------------------------------------
 // _____________________________________________________________
-// MARKS: Activity Feed API Calls
-// Retrieve activity feeds for diferent contexts
+//  Activity Feed
+
 // _____________________________________________________________
 
 export const activityAPI = {
@@ -200,8 +207,8 @@ export const activityAPI = {
 };
 
 // _____________________________________________________________
-// MARKS: Utility Functions
-// Helper functions for token managment and API status
+// Helper Functions
+
 // _____________________________________________________________
 
 export const apiUtils = {
@@ -227,3 +234,4 @@ export const apiUtils = {
     }
   }
 };
+//--------------------------------------------------------------

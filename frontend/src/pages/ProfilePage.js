@@ -21,9 +21,7 @@ function ProfilePage() {
   const isOwnProfile = id === currentUserId;
 
   // _____________________________________________________________
-  // MARKS: Real User Profile Data Fetching
-  // Fetches user profile, projects, and activities from backend
-  // Handles both own profile and other user profiles
+  //  User Profile Data Fetching
   // _____________________________________________________________
   useEffect(() => {
     if (!apiUtils.isAuthenticated()) {

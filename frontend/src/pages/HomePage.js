@@ -9,9 +9,7 @@ function HomePage() {
   const navigate = useNavigate();
 
   // _____________________________________________________________
-  // MARKS: Authentication Protection
-  // Redirects unauthenticated users to splash page
-  // Ensures only logged-in users can acces home page
+  // Authentication Protection
   // _____________________________________________________________
   useEffect(() => {
     if (!apiUtils.isAuthenticated()) {

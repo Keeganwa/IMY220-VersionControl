@@ -59,9 +59,7 @@ function ProjectPage() {
   }, [id, navigate]);
 
   // _____________________________________________________________
-  // MARKS: Project Checkout/Checkin Functionality
-  // Handles project checkout for editing and checkin with changes
-  // Integrates with backend colaboration system
+  // Project Checkout/Checkin Functionality
   // _____________________________________________________________
   const handleCheckout = async () => {
     setIsCheckingOut(true);

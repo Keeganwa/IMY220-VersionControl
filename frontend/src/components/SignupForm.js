@@ -74,9 +74,7 @@ function SignupForm() {
   };
 
   // _____________________________________________________________
-  // MARKS: Real API Registration Integration
-  // Connects to backend user creation endpoint
-  // Creates new user acount and logs them in automaticaly
+  //  API Registration Integration
   // _____________________________________________________________
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -48,9 +48,9 @@ function LoginForm() {
   };
 
   // _____________________________________________________________
-  // MARKS: Real API Login Integration
-  // Connects to backend authentication endpoint
-  // Stores JWT token and user data on succesful login
+  //  API Login Integration
+  // Connects to backend 
+  // Stores JWT token 
   // _____________________________________________________________
   const handleSubmit = async (e) => {
     e.preventDefault();

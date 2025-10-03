@@ -1,7 +1,5 @@
 // _____________________________________________________________
-// MARKS: Authentication Routes
-// Handles user registraton, login, logout, and token managment
-// Includes password hashing and JWT token generation
+// Authentication Routes with JWT
 // _____________________________________________________________
 
 const express = require('express');
@@ -12,14 +10,14 @@ const { auth } = require('../middleware/auth');
 const router = express.Router();
 
 // _____________________________________________________________
-// MARKS: User Registration Endpoint
-// POST /api/auth/signup - Creates new user acount
+//  Register User  
+// POST /api/auth/signup 
 // _____________________________________________________________
 router.post('/signup', async (req, res) => {
   try {
     const { username, email, password, dateOfBirth, occupation } = req.body;
 
-    // Check if user already exists
+    // if user already exsts
     const existingUser = await User.findOne({ 
       $or: [{ email }, { username }] 
     });
@@ -31,7 +29,7 @@ router.post('/signup', async (req, res) => {
       });
     }
 
-    // Create new user (password will be hashed automatically)
+    
     const user = new User({
       username,
       email,
@@ -42,7 +40,9 @@ router.post('/signup', async (req, res) => {
 
     await user.save();
 
-    // Generate JWT token
+
+
+    // Generate JWT token+++
     const token = jwt.sign(
       { id: user._id }, 
       process.env.JWT_SECRET, 
@@ -70,16 +70,19 @@ router.post('/signup', async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
+
+
+
 
 // _____________________________________________________________
-// MARKS: User Login Endpoint
-// POST /api/auth/signin - Authenticates existing user
+//  sign in User  
+// POST /api/auth/signin 
 // _____________________________________________________________
 router.post('/signin', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({
@@ -97,12 +100,13 @@ router.post('/signin', async (req, res) => {
       });
     }
 
-    // Generate JWT token
+    // Generate JWT token+++
     const token = jwt.sign(
       { id: user._id }, 
       process.env.JWT_SECRET, 
       { expiresIn: '7d' }
     );
+
 
     res.json({
       success: true,
@@ -117,6 +121,7 @@ router.post('/signin', async (req, res) => {
       }
     });
 
+
   } catch (error) {
     console.error('Signin error:', error);
     res.status(500).json({
@@ -125,10 +130,11 @@ router.post('/signin', async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
 
 // _____________________________________________________________
-// MARKS: Get Current User Endpoint
-// GET /api/auth/me - Returns current user profil information
+//  Current User 
+// GET /api/auth/me 
 // _____________________________________________________________
 router.get('/me', auth, async (req, res) => {
   try {
@@ -150,5 +156,5 @@ router.get('/me', auth, async (req, res) => {
     });
   }
 });
-
+//--------------------------------------------------------------
 module.exports = router;

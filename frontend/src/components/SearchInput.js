@@ -8,9 +8,8 @@ function SearchInput({ onSearch, searchType = 'projects' }) {
   const [showResults, setShowResults] = useState(false);
 
   // _____________________________________________________________
-  // MARKS: Real Search Implementation
-  // Connects to backend search endpoints for projects and users
-  // Provides live search results with debouncing
+  //   Search 
+  // Connects to backend 
   // _____________________________________________________________
   const performSearch = async (term) => {
     if (!term.trim()) {

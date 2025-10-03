@@ -1,8 +1,7 @@
 // _____________________________________________________________
-// MARKS: Activity Management Routes
-// Handles retrieval of user and project activities
-// Provides activity feeds for local and global views
-// _____________________________________________________________
+// Activity Routes
+
+
 
 const express = require('express');
 const Activity = require('../models/Activity');
@@ -10,22 +9,22 @@ const { auth } = require('../middleware/auth');
 const router = express.Router();
 
 // _____________________________________________________________
-// MARKS: Get Activities Feed
-// GET /api/activities - Returns activity feed based on type
+//  Activities Feed
+// GET /api/activities 
 // _____________________________________________________________
 router.get('/', auth, async (req, res) => {
   try {
     const { feed = 'global', limit = 50 } = req.query;
     let query = {};
 
-    // Build query based on feed type
+    //local
     if (feed === 'local') {
-      // Show activities from user and their friends
+     
       const userFriends = req.user.friends || [];
       const allowedUsers = [req.user._id, ...userFriends];
       query = { user: { $in: allowedUsers } };
     }
-    // Global feed shows all activities (no additional query needed)
+    // Global s 
 
     const activities = await Activity.find(query)
       .populate('user', 'username email')
@@ -46,10 +45,15 @@ router.get('/', auth, async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
+
+
+
+
 
 // _____________________________________________________________
-// MARKS: Get Project-Specific Activities
-// GET /api/activities/project/:projectId - Returns activities for specific project
+//   Project acts
+// GET /api/activities/project/:projectId 
 // _____________________________________________________________
 router.get('/project/:projectId', auth, async (req, res) => {
   try {
@@ -76,9 +80,15 @@ router.get('/project/:projectId', auth, async (req, res) => {
   }
 });
 
+
+//--------------------------------------------------------------
+
+
+
+
 // _____________________________________________________________
-// MARKS: Get User-Specific Activities
-// GET /api/activities/user/:userId - Returns activities for specific user
+// User Activities
+// GET /api/activities/user/:userId 
 // _____________________________________________________________
 router.get('/user/:userId', auth, async (req, res) => {
   try {
@@ -105,9 +115,14 @@ router.get('/user/:userId', auth, async (req, res) => {
   }
 });
 
+//--------------------------------------------------------------
+
+
+
+
 // _____________________________________________________________
-// MARKS: Create Manual Activity
-// POST /api/activities - Creates a new activity record manually
+// Create Activity
+// POST /api/activities 
 // _____________________________________________________________
 router.post('/', auth, async (req, res) => {
   try {
@@ -142,5 +157,6 @@ router.post('/', auth, async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
 
 module.exports = router;

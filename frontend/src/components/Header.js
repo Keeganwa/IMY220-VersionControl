@@ -9,9 +9,7 @@ function Header() {
   const [isLoading, setIsLoading] = useState(true);
 
   // _____________________________________________________________
-  // MARKS: User Authentication State Management
-  // Fetches current user data and handles logout functionality
-  // Displays user-specific navigation and profile informaton
+  //  User Authentication State Management
   // _____________________________________________________________
   useEffect(() => {
     const fetchCurrentUser = async () => {

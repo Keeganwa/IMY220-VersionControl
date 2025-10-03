@@ -1,9 +1,6 @@
-// backend/routes/projects.js
-
 // _____________________________________________________________
-// MARKS: Project Management Routes
-// Handles project CRUD operations, file managment, and colaboration
-// Includes project creation, editing, and check-in/check-out functionality
+// Project Manage
+
 // _____________________________________________________________
 
 const express = require('express');
@@ -14,15 +11,15 @@ const { auth } = require('../middleware/auth');
 const router = express.Router();
 
 // _____________________________________________________________
-// MARKS: Get All Projects Endpoint
-// GET /api/projects - Returns projects based on feed type
+// All Projects 
+// GET /api/projects
 // _____________________________________________________________
 router.get('/', auth, async (req, res) => {
   try {
     const { feed = 'global', search } = req.query;
     let query = {};
 
-    // Build query based on feed type
+   
     if (feed === 'local') {
       // Show projects from user and their friends
       const userFriends = req.user.friends || [];
@@ -35,11 +32,11 @@ router.get('/', auth, async (req, res) => {
         ]
       };
     } else {
-      // Global feed - show all public projects
+      // Global feed 
       query = { isPublic: true };
     }
 
-    // Add search functionality
+    // search functionality
     if (search) {
       query.$and = query.$and || [];
       query.$and.push({
@@ -71,10 +68,13 @@ router.get('/', auth, async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
+
+
 
 // _____________________________________________________________
-// MARKS: Create New Project
-// POST /api/projects - Creates a new project
+// Create New Project
+// POST /api/projects
 // _____________________________________________________________
 router.post('/', auth, async (req, res) => {
   try {
@@ -86,13 +86,13 @@ router.post('/', auth, async (req, res) => {
       creator: req.user._id,
       tags: Array.isArray(tags) ? tags : tags.split(',').map(tag => tag.trim()),
       isPublic,
-      files: [], // Start with empty files aray
+      files: [],
       collaborators: []
     });
 
     await project.save();
 
-    // Add project to user's owned projects
+
     req.user.ownedProjects.push(project._id);
     await req.user.save();
 
@@ -122,10 +122,14 @@ router.post('/', auth, async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
+
+
+
 
 // _____________________________________________________________
-// MARKS: Get Single Project
-// GET /api/projects/:id - Returns specific project details
+//  Single Project
+// GET /api/projects/:id
 // _____________________________________________________________
 router.get('/:id', auth, async (req, res) => {
   try {
@@ -163,10 +167,14 @@ router.get('/:id', auth, async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
+
+
+
 
 // _____________________________________________________________
-// MARKS: Update Project
-// PUT /api/projects/:id - Updates project details
+//  Update Project
+// PUT /api/projects/:id
 // _____________________________________________________________
 router.put('/:id', auth, async (req, res) => {
   try {
@@ -216,9 +224,14 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
+//--------------------------------------------------------------
+
+
+
+
 // _____________________________________________________________
-// MARKS: Delete Project Endpoint
-// DELETE /api/projects/:id - Deletes a project (creator only)
+//  Delete Project 
+// DELETE /api/projects/:id
 // _____________________________________________________________
 router.delete('/:id', auth, async (req, res) => {
   try {
@@ -239,21 +252,15 @@ router.delete('/:id', auth, async (req, res) => {
       });
     }
 
-    // Remove project from creator's owned projects
+  
     await User.findByIdAndUpdate(req.user._id, {
       $pull: { ownedProjects: project._id }
     });
-
-    // Remove project from collaborators' shared projects
     await User.updateMany(
       { _id: { $in: project.collaborators } },
       { $pull: { sharedProjects: project._id } }
     );
-
-    // Delete all activities related to this project
     await Activity.deleteMany({ project: project._id });
-
-    // Delete the project
     await Project.findByIdAndDelete(req.params.id);
 
     res.json({
@@ -269,6 +276,9 @@ router.delete('/:id', auth, async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
+
+
 
 // _____________________________________________________________
 // MARKS: Project Checkout/Checkin System
@@ -405,5 +415,5 @@ router.post('/:id/checkin', auth, async (req, res) => {
     });
   }
 });
-
+//--------------------------------------------------------------
 module.exports = router;

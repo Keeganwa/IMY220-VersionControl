@@ -1,9 +1,7 @@
 
 
 // _____________________________________________________________
-// MARKS: User Management Routes
-// Handles user profile CRUD operations and friend managment
-// Includes profile updates and friend request functionality
+// User Manage 
 // _____________________________________________________________
 
 const express = require('express');
@@ -12,15 +10,15 @@ const { auth } = require('../middleware/auth');
 const router = express.Router();
 
 // _____________________________________________________________
-// MARKS: Get All Users Endpoint
-// GET /api/users - Returns list of all users for search
+//  Get All Users Endpoint
+// GET /api/users 
 // _____________________________________________________________
 router.get('/', auth, async (req, res) => {
   try {
     const { search } = req.query;
     let query = {};
 
-    // If search term provided, search by username, email, or name
+    // search ter
     if (search) {
       query = {
         $or: [
@@ -48,10 +46,13 @@ router.get('/', auth, async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
+
+
 
 // _____________________________________________________________
-// MARKS: Get Single User Profile
-// GET /api/users/:id - Returns specific user profil
+// Single User Profile
+// GET /api/users/:id 
 // _____________________________________________________________
 router.get('/:id', auth, async (req, res) => {
   try {
@@ -81,16 +82,20 @@ router.get('/:id', auth, async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
+
+
+
 
 // _____________________________________________________________
-// MARKS: Update User Profile
-// PUT /api/users/profile - Updates current user's profil
+// Update Profile
+// PUT /api/users/profile 
 // _____________________________________________________________
 router.put('/profile', auth, async (req, res) => {
   try {
     const { username, email, occupation, dateOfBirth } = req.body;
     
-    // Check if username/email already taken by another user
+    // Check if taken 
     const existingUser = await User.findOne({
       $and: [
         { _id: { $ne: req.user._id } }, // Not current user
@@ -125,10 +130,12 @@ router.put('/profile', auth, async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
+
 
 // _____________________________________________________________
-// MARKS: Friend Request Management
-// POST /api/users/:id/friend-request - Send friend request
+// Friend Request
+// POST /api/users/:id/friend-request 
 // _____________________________________________________________
 router.post('/:id/friend-request', auth, async (req, res) => {
   try {
@@ -184,17 +191,20 @@ router.post('/:id/friend-request', auth, async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
+
+
 
 // _____________________________________________________________
-// MARKS: Accept Friend Request
-// POST /api/users/accept-friend/:id - Accept friend request
+// Accept Friend Request
+// POST /api/users/accept-friend/:id - 
 // _____________________________________________________________
 router.post('/accept-friend/:id', auth, async (req, res) => {
   try {
     const friendId = req.params.id;
     const currentUser = await User.findById(req.user._id);
 
-    // Check if friend request exists
+    // if  request exists
     if (!currentUser.friendRequests.includes(friendId)) {
       return res.status(400).json({
         success: false,
@@ -210,11 +220,12 @@ router.post('/accept-friend/:id', auth, async (req, res) => {
       });
     }
 
-    // Add each other as friends
+    // Add each other
     currentUser.friends.push(friendId);
     friend.friends.push(currentUser._id);
 
-    // Remove friend request
+
+
     currentUser.friendRequests = currentUser.friendRequests.filter(
       id => id.toString() !== friendId
     );
@@ -235,10 +246,13 @@ router.post('/accept-friend/:id', auth, async (req, res) => {
     });
   }
 });
+//--------------------------------------------------------------
+
+
 
 // _____________________________________________________________
-// MARKS: Unfriend User Endpoint
-// DELETE /api/users/unfriend/:id - Remove friend relationship
+//  Unfriend User 
+// DELETE /api/users/unfriend/:id 
 // _____________________________________________________________
 router.delete('/unfriend/:id', auth, async (req, res) => {
   try {

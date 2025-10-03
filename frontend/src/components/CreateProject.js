@@ -28,9 +28,7 @@ function CreateProject({ onClose, onSubmit }) {
   };
 
   // _____________________________________________________________
-  // MARKS: Real Project Creation API Integration
-  // Connects to backend project creation endpoint
-  // Validates form data and creates new project in databse
+  // Real Project Creation API Integration
   // _____________________________________________________________
   const handleSubmit = async (e) => {
     e.preventDefault();

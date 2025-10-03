@@ -29,10 +29,8 @@ function EditProfile({ user, onClose, onSave }) {
   };
 
   // _____________________________________________________________
-  // MARKS: Profile Update Implementation
-  // Handles user profile editing with validation
-  // Updates profile data in backend and refreshes UI
-  // _____________________________________________________________
+  //  Profile Update Implementation
+  // _____________________________________________
   const handleSubmit = async (e) => {
     e.preventDefault();
     
