@@ -6,7 +6,7 @@ MONGODB CONNECTION STRING:
 mongodb+srv://codebase_db:Codebase_Pass@codebasestudio.omrkbre.mongodb.net/codebaseStudio?retryWrites=true&w=majority
 
 GITHUB REPOSITORY:
-[Your repo link]
+https://github.com/Keeganwa/IMY220-VersionControl
 
 Test the application at: http://localhost:4040
 Backend health check: http://localhost:5000/api/health
