@@ -248,7 +248,7 @@ function CreateProject({ onClose, onSubmit }) {
           <input
             type="text"
             id="version"
-            name="name"
+            name="version"
             value={projectData.version}
             onChange={handleChange}
             placeholder="1.0.0"

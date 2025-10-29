@@ -1,6 +1,3 @@
-// _______________________
-// Activity Model
-// ________________________________________________________
 
 const mongoose = require('mongoose');
 
@@ -24,7 +21,8 @@ const activitySchema = new mongoose.Schema({
       'checked_out',
       'created_project',
       'joined_project',
-      'left_project'
+      'left_project',
+    'transferred_ownership'
     ]
   },
 

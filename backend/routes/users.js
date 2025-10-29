@@ -9,6 +9,9 @@ const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
+const Project = require('../models/Project');  
+const Activity = require('../models/Activity'); 
+const Discussion = require('../models/Discussion');
 // _____________________________________________________________
 //  Get All Users Endpoint
 // GET /api/users 
@@ -379,7 +382,7 @@ router.delete('/profile', auth, async (req, res) => {
     await Activity.deleteMany({ user: userId });
 
     // Delete user's discussions
-    const Discussion = require('../models/Discussion');
+    
     await Discussion.deleteMany({ user: userId });
 
     // Remove from friends lists

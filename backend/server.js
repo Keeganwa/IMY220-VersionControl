@@ -4,9 +4,15 @@
 
 const express = require('express');
 const path = require('path');
+const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
-
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
+const projectRoutes = require('./routes/projects');
+const activityRoutes = require('./routes/activities');
+const discussionRoutes = require('./routes/discussions');
+const adminRoutes = require('./routes/admin');
 // Load .env 
 dotenv.config();
 
@@ -32,19 +38,14 @@ app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
-const cors = require('cors');
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // _____________________________________________________________
 // API Routes Config
 // _____________________________________________________________
 
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
-const projectRoutes = require('./routes/projects');
-const activityRoutes = require('./routes/activities');
-const discussionRoutes = require('./routes/discussions');
-const adminRoutes = require('./routes/admin');
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

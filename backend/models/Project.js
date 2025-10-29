@@ -1,6 +1,4 @@
-// _____________________________________________________________
-// Project Model
-// _____________________________________________________________
+
 
 const mongoose = require('mongoose');
 
@@ -16,6 +14,25 @@ const projectSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Project description is required'],
     maxlength: 500
+  },
+
+ 
+  type: {
+    type: String,
+    required: [true, 'Project type is required'],
+    trim: true
+  },
+
+
+  image: {
+    type: String,
+    default: null
+  },
+
+
+  version: {
+    type: String,
+    default: '1.0.0'
   },
 
 
@@ -42,6 +59,10 @@ const projectSchema = new mongoose.Schema({
   // Files stored
   files: [{
     name: {
+      type: String,
+      required: true
+    },
+    path: {
       type: String,
       required: true
     },
