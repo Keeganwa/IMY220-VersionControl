@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { projectAPI, activityAPI, apiUtils } from '../services/api';
+import DiscussionBoard from '../components/DiscussionBoard';
 
 function ProjectPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedNewOwner, setSelectedNewOwner] = useState('');
   const [project, setProject] = useState(null);
   const [projectActivities, setProjectActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -14,13 +17,15 @@ function ProjectPage() {
   const [showCheckinForm, setShowCheckinForm] = useState(false);
   const [checkinData, setCheckinData] = useState({
     message: '',
-    files: []
+    files: [],
+    version: ''
   });
+  const [selectedFiles, setSelectedFiles] = useState([]);
 
   const currentUserId = localStorage.getItem('userId');
 
   // _____________________________________________________________
-  // MARKS: Real Project Data Fetching
+  //  Real Project Data Fetching
   // Fetches project details and activities from backend
   // Handles project loading and error states
   // _____________________________________________________________
@@ -59,6 +64,81 @@ function ProjectPage() {
   }, [id, navigate]);
 
   // _____________________________________________________________
+  // Handle Tag Click - Navigate to Home with Search
+  // _____________________________________________________________
+  const handleTagClick = (tag) => {
+    navigate(`/home?search=${encodeURIComponent(tag)}`);
+  };
+
+  // _____________________________________________________________
+  // Handle File Selection for Check-in
+  // _____________________________________________________________
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    
+    // Validate file count (max 20)
+    if (files.length > 20) {
+      alert('Maximum 20 files allowed per upload');
+      e.target.value = '';
+      return;
+    }
+
+    // Validate individual file sizes (max 50MB each)
+    const oversizedFiles = files.filter(file => file.size > 50 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      alert(`Some files exceed 50MB limit: ${oversizedFiles.map(f => f.name).join(', ')}`);
+      e.target.value = '';
+      return;
+    }
+
+    setSelectedFiles(files);
+  };
+
+const handleTransferOwnership = async () => {
+    if (!selectedNewOwner) {
+      alert('Please select a new owner');
+      return;
+    }
+
+    const confirmTransfer = window.confirm(
+      'Are you sure you want to transfer ownership of this project? You will become a collaborator instead.'
+    );
+
+    if (!confirmTransfer) {
+      return;
+    }
+
+    try {
+      const response = await projectAPI.transferOwnership(id, selectedNewOwner);
+      
+      if (response.success) {
+        alert('Ownership transferred successfully!');
+        setShowTransferModal(false);
+        setSelectedNewOwner('');
+        
+        // Refresh project data
+        const projectResponse = await projectAPI.getProjectById(id);
+        if (projectResponse.success) {
+          setProject(projectResponse.project);
+        }
+        
+        // Refresh activities
+        const activitiesResponse = await activityAPI.getProjectActivities(id, 20);
+        if (activitiesResponse.success) {
+          setProjectActivities(activitiesResponse.activities);
+        }
+      }
+    } catch (error) {
+      console.error('Transfer ownership error:', error);
+      alert('Failed to transfer ownership: ' + error.message);
+    }
+  };
+
+  const isProjectOwner = () => {
+    return project?.creator?._id === currentUserId;
+  };
+
+  // _____________________________________________________________
   // Project Checkout/Checkin Functionality
   // _____________________________________________________________
   const handleCheckout = async () => {
@@ -73,7 +153,7 @@ function ProjectPage() {
         setProject(projectResponse.project);
       }
       
-      alert('Project checked out succesfully!');
+      alert('Project checked out successfully!');
     } catch (error) {
       console.error('Checkout error:', error);
       alert('Failed to checkout project: ' + error.message);
@@ -86,32 +166,96 @@ function ProjectPage() {
     e.preventDefault();
     
     if (!checkinData.message.trim()) {
-      alert('Please enter a check-in mesage');
+      alert('Please enter a check-in message');
       return;
     }
 
     try {
-      await projectAPI.checkinProject(id, checkinData);
+      // Use FormData for file upload
+      const formData = new FormData();
+      formData.append('message', checkinData.message);
       
-      // Refresh project data
-      const projectResponse = await projectAPI.getProjectById(id);
-      if (projectResponse.success) {
-        setProject(projectResponse.project);
+      if (checkinData.version) {
+        formData.append('version', checkinData.version);
       }
-      
-      // Refresh activities
-      const activitiesResponse = await activityAPI.getProjectActivities(id, 20);
-      if (activitiesResponse.success) {
-        setProjectActivities(activitiesResponse.activities);
+
+      // Append all selected files
+      selectedFiles.forEach(file => {
+        formData.append('files', file);
+      });
+
+      // Send FormData instead of JSON
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/projects/${id}/checkin`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh project data
+        const projectResponse = await projectAPI.getProjectById(id);
+        if (projectResponse.success) {
+          setProject(projectResponse.project);
+        }
+        
+        // Refresh activities
+        const activitiesResponse = await activityAPI.getProjectActivities(id, 20);
+        if (activitiesResponse.success) {
+          setProjectActivities(activitiesResponse.activities);
+        }
+        
+        setShowCheckinForm(false);
+        setCheckinData({ message: '', files: [], version: '' });
+        setSelectedFiles([]);
+        alert('Project checked in successfully!');
+      } else {
+        throw new Error(data.message);
       }
-      
-      setShowCheckinForm(false);
-      setCheckinData({ message: '', files: [] });
-      alert('Project checked in succesfully!');
       
     } catch (error) {
       console.error('Checkin error:', error);
       alert('Failed to checkin project: ' + error.message);
+    }
+  };
+
+  // _____________________________________________________________
+  // Handle File Download
+  // _____________________________________________________________
+  const handleDownloadFile = async (fileName) => {
+    try {
+      const downloadUrl = `http://localhost:5000/api/projects/${id}/files/${encodeURIComponent(fileName)}`;
+      
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetch(downloadUrl, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        .then(response => response.blob())
+        .then(blob => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        })
+        .catch(error => {
+          console.error('Download error:', error);
+          alert('Failed to download file');
+        });
+      }
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      alert('Failed to download file: ' + error.message);
     }
   };
 
@@ -195,12 +339,60 @@ function ProjectPage() {
         <div className="project-container">
           <div className="project-main">
             <div className="project-info-card">
+
+
               <div className="project-header-info">
                 <h1>{project.name}</h1>
-                {canUserEdit() && (
-                  <button className="btn btn-secondary">Edit Project</button>
-                )}
+                <div style={{display: 'flex', gap: '10px'}}>
+                  {canUserEdit() && (
+                    <button className="btn btn-secondary">Edit Project</button>
+                  )}
+                  {isProjectOwner() && project.collaborators && project.collaborators.length > 0 && (
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => setShowTransferModal(true)}
+                      style={{
+                        backgroundColor: '#ffa94d',
+                        borderColor: '#ffa94d'
+                      }}
+                    >
+                      Transfer Ownership
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Project Image */}
+              {project.image && (
+                <div style={{
+                  width: '100%',
+                  maxWidth: '400px',
+                  marginTop: '20px',
+                  marginBottom: '20px'
+                }}>
+                  <img 
+                    src={`http://localhost:5000${project.image}`}
+                    alt={project.name}
+                    style={{
+                      width: '100%',
+                      borderRadius: '8px',
+                      border: '2px solid #333',
+                      cursor: 'pointer'
+                    }}
+                    onClick={(e) => {
+                      if (e.target.style.transform === 'scale(1.5)') {
+                        e.target.style.transform = 'scale(1)';
+                      } else {
+                        e.target.style.transform = 'scale(1.5)';
+                      }
+                      e.target.style.transition = 'transform 0.3s';
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
               
               <div className="project-meta">
                 <span>Created by: <strong style={{color: '#5b9bff'}}>{project.creator?.username}</strong></span>
@@ -208,7 +400,7 @@ function ProjectPage() {
 
               {project.collaborators && project.collaborators.length > 0 && (
                 <div className="project-meta">
-                  <span>Colaborators: </span>
+                  <span>Collaborators: </span>
                   {project.collaborators.map((collab, index) => (
                     <span key={collab._id}>
                       <strong style={{color: '#5b9bff'}}>{collab.username}</strong>
@@ -223,12 +415,32 @@ function ProjectPage() {
                 <p style={{color: '#b0b0b0', lineHeight: '1.6'}}>{project.description}</p>
               </div>
 
+              {/* Clickable Hashtags */}
               {project.tags && project.tags.length > 0 && (
                 <div style={{marginBottom: '20px'}}>
                   <h3 style={{color: '#d4ff00', marginBottom: '10px'}}>Tags</h3>
                   <div className="project-tags">
                     {project.tags.map((tag, index) => (
-                      <span key={index} className="tag">{tag}</span>
+                      <span 
+                        key={index} 
+                        className="tag"
+                        onClick={() => handleTagClick(tag)}
+                        style={{
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          userSelect: 'none'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.transform = 'scale(1.05)';
+                          e.target.style.backgroundColor = 'rgba(212, 255, 0, 0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = 'scale(1)';
+                          e.target.style.backgroundColor = 'rgba(212, 255, 0, 0.1)';
+                        }}
+                      >
+                        #{tag}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -238,6 +450,8 @@ function ProjectPage() {
                 <span>Created: {formatDate(project.createdAt)}</span>
                 <span>•</span>
                 <span>Last Modified: {formatDate(project.updatedAt)}</span>
+                <span>•</span>
+                <span>Version: {project.version || '1.0.0'}</span>
                 <span>•</span>
                 <span style={{color: project.isPublic ? '#51cf66' : '#888'}}>
                   {project.isPublic ? 'Public' : 'Private'}
@@ -280,7 +494,7 @@ function ProjectPage() {
                 <h3 style={{color: '#d4ff00', marginBottom: '20px'}}>Check In Changes</h3>
                 <form onSubmit={handleCheckinSubmit}>
                   <div className="form-group">
-                    <label htmlFor="checkinMessage">Check-in Message</label>
+                    <label htmlFor="checkinMessage">Check-in Message *</label>
                     <textarea
                       id="checkinMessage"
                       value={checkinData.message}
@@ -293,6 +507,54 @@ function ProjectPage() {
                       style={{minHeight: '100px'}}
                     />
                   </div>
+
+                  <div className="form-group">
+                    <label htmlFor="newVersion">New Version *</label>
+                    <input
+                      type="text"
+                      id="newVersion"
+                      value={checkinData.version || project.version}
+                      onChange={(e) => setCheckinData(prev => ({
+                        ...prev,
+                        version: e.target.value
+                      }))}
+                      placeholder="1.0.1"
+                    />
+                    <small style={{color: '#888', fontSize: '12px', display: 'block', marginTop: '5px'}}>
+                      Current version: {project.version} • Format: Major.Minor.Patch
+                    </small>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="checkinFiles">Upload Files (Max 20 files, 50MB each)</label>
+                    <input
+                      type="file"
+                      id="checkinFiles"
+                      multiple
+                      onChange={handleFileChange}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        backgroundColor: '#1f1f1f',
+                        border: '2px solid #333',
+                        borderRadius: '8px',
+                        color: '#e0e0e0',
+                        fontSize: '14px'
+                      }}
+                    />
+                    {selectedFiles.length > 0 && (
+                      <div style={{marginTop: '10px'}}>
+                        <small style={{color: '#888'}}>
+                          {selectedFiles.length} file(s) selected:
+                        </small>
+                        <ul style={{color: '#b0b0b0', fontSize: '13px', marginTop: '5px', paddingLeft: '20px'}}>
+                          {selectedFiles.map((file, index) => (
+                            <li key={index}>{file.name} ({(file.size / 1024).toFixed(2)} KB)</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                   
                   <div style={{display: 'flex', gap: '10px'}}>
                     <button type="submit" className="btn btn-secondary">
@@ -301,7 +563,10 @@ function ProjectPage() {
                     <button 
                       type="button" 
                       className="btn btn-primary"
-                      onClick={() => setShowCheckinForm(false)}
+                      onClick={() => {
+                        setShowCheckinForm(false);
+                        setSelectedFiles([]);
+                      }}
                     >
                       Cancel
                     </button>
@@ -327,7 +592,14 @@ function ProjectPage() {
                         </div>
                       </div>
                       <div style={{display: 'flex', gap: '10px'}}>
-                        <button className="btn btn-secondary" style={{padding: '6px 15px', fontSize: '12px'}}>
+                        <button 
+                          className="btn btn-secondary" 
+                          style={{padding: '6px 15px', fontSize: '12px'}}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadFile(file.name);
+                          }}
+                        >
                           Download
                         </button>
                         <button className="btn btn-primary" style={{padding: '6px 15px', fontSize: '12px'}}>
@@ -377,6 +649,90 @@ function ProjectPage() {
             )}
           </aside>
         </div>
+
+        {/* Discussion Board */}
+        <div style={{marginTop: '30px'}}>
+          <DiscussionBoard projectId={id} />
+        </div>
+        
+
+        {showTransferModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: '#1a1a1a',
+              padding: '30px',
+              borderRadius: '12px',
+              border: '2px solid #333',
+              maxWidth: '500px',
+              width: '90%'
+            }}>
+              <h2 style={{color: '#d4ff00', marginBottom: '20px'}}>
+                Transfer Project Ownership
+              </h2>
+              
+              <p style={{color: '#b0b0b0', marginBottom: '20px'}}>
+                Select a collaborator to become the new owner of this project. You will become a collaborator.
+              </p>
+
+              <div className="form-group">
+                <label htmlFor="newOwner">Select New Owner</label>
+                <select
+                  id="newOwner"
+                  value={selectedNewOwner}
+                  onChange={(e) => setSelectedNewOwner(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    backgroundColor: '#1f1f1f',
+                    border: '2px solid #333',
+                    borderRadius: '8px',
+                    color: '#e0e0e0',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">-- Select a collaborator --</option>
+                  {project.collaborators && project.collaborators.map((collab) => (
+                    <option key={collab._id} value={collab._id}>
+                      {collab.username}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={handleTransferOwnership}
+                  disabled={!selectedNewOwner}
+                  style={{flex: 1}}
+                >
+                  Transfer Ownership
+                </button>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setSelectedNewOwner('');
+                  }}
+                  style={{flex: 1}}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -13,10 +13,11 @@ COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
 RUN npm install
 
-# Copy all source files (excluding node_modules via .dockerignore)
+# Copy all source files
 WORKDIR /app
-COPY . .
-COPY frontend/public/assets/images/ /app/frontend/public/assets/images/
+COPY backend ./backend
+COPY frontend ./frontend
+
 # Build frontend for production
 WORKDIR /app/frontend
 RUN npm run build

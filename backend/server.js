@@ -3,7 +3,7 @@
 // _________________________________________________________
 
 const express = require('express');
-const cors = require('cors');
+const path = require('path');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
@@ -32,6 +32,8 @@ app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
+const cors = require('cors');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // _____________________________________________________________
 // API Routes Config
@@ -41,12 +43,15 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const projectRoutes = require('./routes/projects');
 const activityRoutes = require('./routes/activities');
-
+const discussionRoutes = require('./routes/discussions');
+const adminRoutes = require('./routes/admin');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/activities', activityRoutes);
+app.use('/api/discussions', discussionRoutes);
+app.use('/api/admin', adminRoutes);
 //--------------------------------------------------------------
 
 

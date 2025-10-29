@@ -62,7 +62,12 @@ const userSchema = new mongoose.Schema({
   sharedProjects: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project'
-  }]
+  }],
+
+  isAdmin: {
+    type: Boolean,
+    default: false
+  }
 }, {
   timestamps: true 
 });

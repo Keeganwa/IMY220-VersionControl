@@ -9,7 +9,15 @@ function ProjectPreview({ project }) {
   };
 
   // _____________________________________________________________
-  //Real Project Data Display
+  // Handle Tag Click - Search by Programming Language
+  // _____________________________________________________________
+  const handleTagClick = (tag, e) => {
+    e.stopPropagation(); // Prevent project card click
+    navigate(`/home?search=${encodeURIComponent(tag)}`);
+  };
+
+  // _____________________________________________________________
+  // Real Project Data Display
   // _____________________________________________________________
   
   // Format date for display
@@ -43,7 +51,7 @@ function ProjectPreview({ project }) {
     return project.files?.length || 0;
   };
 
-  // Handle missing project data gracefuly
+  // Handle missing project data gracefully
   if (!project) {
     return (
       <article className="project-card" style={{opacity: 0.5}}>
@@ -54,6 +62,31 @@ function ProjectPreview({ project }) {
 
   return (
     <article className="project-card" onClick={handleClick}>
+      {/* Project Image */}
+      {project.image && (
+        <div style={{
+          width: '100%',
+          height: '180px',
+          overflow: 'hidden',
+          borderRadius: '8px',
+          marginBottom: '15px',
+          backgroundColor: '#1f1f1f'
+        }}>
+          <img 
+            src={`http://localhost:5000${project.image}`}
+            alt={project.name}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+        </div>
+      )}
+      
       <h3>{project.name || 'Untitled Project'}</h3>
       <div className="project-meta">
         <span>Created by: <strong>{project.creator?.username || 'Unknown'}</strong></span>
@@ -64,11 +97,30 @@ function ProjectPreview({ project }) {
         {project.description || 'No description available.'}
       </p>
       
-      {/* Display tags if available */}
+      {/* Display clickable hashtags */}
       {project.tags && project.tags.length > 0 && (
         <div className="project-tags">
           {project.tags.map((tag, index) => (
-            <span key={index} className="tag">{tag}</span>
+            <span 
+              key={index} 
+              className="tag"
+              onClick={(e) => handleTagClick(tag, e)}
+              style={{
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                userSelect: 'none'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.05)';
+                e.target.style.backgroundColor = 'rgba(212, 255, 0, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.backgroundColor = 'rgba(212, 255, 0, 0.1)';
+              }}
+            >
+              #{tag}
+            </span>
           ))}
         </div>
       )}

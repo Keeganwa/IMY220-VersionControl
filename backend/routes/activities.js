@@ -158,5 +158,39 @@ router.post('/', auth, async (req, res) => {
   }
 });
 //--------------------------------------------------------------
+router.get('/search', auth, async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    if (!query || query.trim().length === 0) {
+      return res.json({
+        success: true,
+        activities: []
+      });
+    }
+
+    // Search activities by message (check-in messages)
+    const activities = await Activity.find({
+      message: { $regex: query, $options: 'i' } // Case-insensitive search
+    })
+      .populate('user', 'username email')
+      .populate('project', 'name description image tags')
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    res.json({
+      success: true,
+      activities
+    });
+
+  } catch (error) {
+    console.error('Search activities error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error searching activities'
+    });
+  }
+});
+
 
 module.exports = router;

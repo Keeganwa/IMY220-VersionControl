@@ -7,6 +7,7 @@ function Header() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // _____________________________________________________________
   //  User Authentication State Management
@@ -18,11 +19,11 @@ function Header() {
           const response = await authAPI.getCurrentUser();
           if (response.success) {
             setCurrentUser(response.user);
+            setIsAdmin(response.user.isAdmin || false);
           }
         }
       } catch (error) {
         console.error('Error fetching current user:', error);
-     
         apiUtils.logout();
       } finally {
         setIsLoading(false);
@@ -33,11 +34,8 @@ function Header() {
   }, []);
 
   const handleSignOut = () => {
-   
     apiUtils.logout();
     setCurrentUser(null);
-    
-    // Navigate to splash page
     navigate('/');
   };
 
@@ -64,7 +62,12 @@ function Header() {
                 <span style={{fontSize: '24px', display: 'none'}}>🔧</span>
               </div>
               <div className="logo-text">
-                <h1>Codebase</h1>
+                <h1 
+                  onClick={() => navigate('/home')}
+                  style={{cursor: 'pointer'}}
+                >
+                  Codebase
+                </h1>
                 <span className="studio">STUDIO</span>
               </div>
             </div>
@@ -109,7 +112,12 @@ function Header() {
                 <span style={{fontSize: '24px', display: 'none'}}>🔧</span>
               </div>
               <div className="logo-text">
-                <h1>Codebase</h1>
+                <h1 
+                  onClick={() => navigate('/home')}
+                  style={{cursor: 'pointer'}}
+                >
+                  Codebase
+                </h1>
                 <span className="studio">STUDIO</span>
               </div>
             </div>
@@ -153,6 +161,11 @@ function Header() {
               Profile
             </Link>
           </li>
+          {isAdmin && (
+            <li>
+              <Link to="/admin">Admin</Link>
+            </li>
+          )}
         </ul>
       </nav>
     </>

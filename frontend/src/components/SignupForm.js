@@ -64,7 +64,7 @@ function SignupForm() {
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
+   
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -74,7 +74,7 @@ function SignupForm() {
   };
 
   // _____________________________________________________________
-  //  API Registration Integration
+  //  API Registration Integration with Auto-Login
   // _____________________________________________________________
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -87,36 +87,22 @@ function SignupForm() {
     setErrors({});
 
     try {
-      // Prepare data for API (exclude confirmPassword)
-      const { confirmPassword, ...apiData } = formData;
-      
-      // Call real API instead of dummy endpoint
-      const response = await authAPI.signup(apiData);
+      const response = await authAPI.signup(formData);
       
       if (response.success) {
-        // Store authentication data
+        // Store auth data
         localStorage.setItem('token', response.token);
-        localStorage.setItem('userId', response.user.id);
+        localStorage.setItem('userId', response.user._id);
         localStorage.setItem('username', response.user.username);
         
-        console.log('Registration succesful:', response.user.username);
-        
-        // Navigate to home page
-        navigate('/home');
+        // Auto-login: redirect to home page
+        window.location.href = '/home';
       }
     } catch (error) {
       console.error('Signup error:', error);
-      
-      // Handle specific error messages from backend
-      let errorMessage = 'Failed to register. Please try again.';
-      
-      if (error.message.includes('already exists')) {
-        errorMessage = 'Username or email already taken.';
-      } else if (error.message.includes('validation')) {
-        errorMessage = 'Please check your information and try again.';
-      }
-      
-      setErrors({ submit: errorMessage });
+      setErrors({ 
+        submit: error.message || 'Failed to create account' 
+      });
     } finally {
       setIsLoading(false);
     }
@@ -127,7 +113,13 @@ function SignupForm() {
       <h2>Register</h2>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="username">Username</label>
+          <label 
+            htmlFor="username"
+            onClick={() => document.getElementById('username').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Username
+          </label>
           <input
             type="text"
             id="username"
@@ -141,7 +133,13 @@ function SignupForm() {
         </div>
 
         <div className="form-group">
-          <label htmlFor="email">Email</label>
+          <label 
+            htmlFor="email"
+            onClick={() => document.getElementById('email').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Email
+          </label>
           <input
             type="email"
             id="email"
@@ -155,7 +153,13 @@ function SignupForm() {
         </div>
 
         <div className="form-group">
-          <label htmlFor="password">Password</label>
+          <label 
+            htmlFor="password"
+            onClick={() => document.getElementById('password').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Password
+          </label>
           <input
             type="password"
             id="password"
@@ -169,7 +173,13 @@ function SignupForm() {
         </div>
 
         <div className="form-group">
-          <label htmlFor="confirmPassword">Confirm Password</label>
+          <label 
+            htmlFor="confirmPassword"
+            onClick={() => document.getElementById('confirmPassword').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Confirm Password
+          </label>
           <input
             type="password"
             id="confirmPassword"
@@ -183,7 +193,13 @@ function SignupForm() {
         </div>
 
         <div className="form-group">
-          <label htmlFor="dateOfBirth">Date of Birth</label>
+          <label 
+            htmlFor="dateOfBirth"
+            onClick={() => document.getElementById('dateOfBirth').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Date of Birth
+          </label>
           <input
             type="date"
             id="dateOfBirth"
@@ -196,7 +212,13 @@ function SignupForm() {
         </div>
 
         <div className="form-group">
-          <label htmlFor="occupation">Occupation</label>
+          <label 
+            htmlFor="occupation"
+            onClick={() => document.getElementById('occupation').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Occupation
+          </label>
           <input
             type="text"
             id="occupation"

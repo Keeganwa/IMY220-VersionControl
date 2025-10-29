@@ -5,6 +5,8 @@ import ProjectPreview from '../components/ProjectPreview';
 import CreateProject from '../components/CreateProject';
 import EditProfile from '../components/EditProfile';
 import { userAPI, activityAPI, projectAPI, apiUtils } from '../services/api';
+import FriendsModal from '../components/FriendsModal';
+import FriendRequests from '../components/FriendRequests';
 
 function ProfilePage() {
   const { id } = useParams();
@@ -16,7 +18,8 @@ function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [error, setError] = useState(null);
-
+  const [showFriendsModal, setShowFriendsModal] = useState(false);
+  const [showRequestsModal, setShowRequestsModal] = useState(false);
   const currentUserId = localStorage.getItem('userId');
   const isOwnProfile = id === currentUserId;
 
@@ -29,42 +32,42 @@ function ProfilePage() {
       return;
     }
 
-    const fetchProfileData = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        // Fetch user profile
-        const userResponse = await userAPI.getUserById(id);
-        if (userResponse.success) {
-          setProfile(userResponse.user);
-        }
-
-        // Fetch user activities
-        const activitiesResponse = await activityAPI.getUserActivities(id, 10);
-        if (activitiesResponse.success) {
-          setUserActivities(activitiesResponse.activities);
-        }
-
-        // Extract projects from profile data
-        if (userResponse.success && userResponse.user) {
-          const allProjects = [
-            ...(userResponse.user.ownedProjects || []),
-            ...(userResponse.user.sharedProjects || [])
-          ];
-          setUserProjects(allProjects);
-        }
-
-      } catch (error) {
-        console.error('Error fetching profile data:', error);
-        setError(error.message || 'Failed to load profile data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProfileData();
+    fetchUserData();
   }, [id, navigate]);
+
+  const fetchUserData = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Fetch user profile
+      const userResponse = await userAPI.getUserById(id);
+      if (userResponse.success) {
+        setProfile(userResponse.user);
+      }
+
+      // Fetch user activities
+      const activitiesResponse = await activityAPI.getUserActivities(id, 10);
+      if (activitiesResponse.success) {
+        setUserActivities(activitiesResponse.activities);
+      }
+
+      // Extract projects from profile data
+      if (userResponse.success && userResponse.user) {
+        const allProjects = [
+          ...(userResponse.user.ownedProjects || []),
+          ...(userResponse.user.sharedProjects || [])
+        ];
+        setUserProjects(allProjects);
+      }
+
+    } catch (error) {
+      console.error('Error fetching profile data:', error);
+      setError(error.message || 'Failed to load profile data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleCreateProject = async (projectData) => {
     console.log('Project created:', projectData);
@@ -89,7 +92,7 @@ function ProfilePage() {
   const handleSendFriendRequest = async () => {
     try {
       await userAPI.sendFriendRequest(id);
-      alert('Friend request sent succesfully!');
+      alert('Friend request sent successfully!');
     } catch (error) {
       console.error('Error sending friend request:', error);
       alert('Failed to send friend request: ' + error.message);
@@ -100,9 +103,9 @@ function ProfilePage() {
     if (window.confirm('Are you sure you want to unfriend this user?')) {
       try {
         await userAPI.unfriend(id);
-        alert('User unfriended succesfully');
+        alert('User unfriended successfully');
         // Refresh profile data
-        window.location.reload();
+        fetchUserData();
       } catch (error) {
         console.error('Error unfriending user:', error);
         alert('Failed to unfriend user: ' + error.message);
@@ -114,13 +117,49 @@ function ProfilePage() {
     if (window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
       try {
         await projectAPI.deleteProject(projectId);
-        alert('Project deleted succesfully');
+        alert('Project deleted successfully');
         // Refresh profile data
-        window.location.reload();
+        fetchUserData();
       } catch (error) {
         console.error('Error deleting project:', error);
         alert('Failed to delete project: ' + error.message);
       }
+    }
+  };
+
+  // _____________________________________________________________
+  // Delete Own Profile
+  // _____________________________________________________________
+  const handleDeleteProfile = async () => {
+    const confirmation = window.prompt(
+      'Are you sure you want to delete your profile? This action cannot be undone.\n\n' +
+      'Type "DELETE" to confirm:'
+    );
+
+    if (confirmation !== 'DELETE') {
+      if (confirmation !== null) {
+        alert('Profile deletion cancelled. You must type "DELETE" exactly.');
+      }
+      return;
+    }
+
+    try {
+      const response = await userAPI.deleteOwnProfile();
+      
+      if (response.success) {
+        alert('Your profile has been deleted successfully.');
+        
+        // Clear local storage
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('username');
+        
+        // Redirect to splash page
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Error deleting profile:', error);
+      alert('Failed to delete profile: ' + error.message);
     }
   };
 
@@ -178,6 +217,129 @@ function ProfilePage() {
     );
   }
 
+  const isFriend = profile?.friends?.some(friend => friend._id === currentUserId);
+  const isLimitedProfile = profile && !isOwnProfile && !isFriend;
+
+  if (isLoading) {
+    return (
+      <div>
+        <Header />
+        <main className="page-container">
+          <div style={{textAlign: 'center', padding: '40px', color: '#b0b0b0'}}>
+            Loading profile...
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <Header />
+        <main className="page-container">
+          <div style={{textAlign: 'center', padding: '40px', color: '#ff6b6b'}}>
+            <p>Error: {error}</p>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div>
+        <Header />
+        <main className="page-container">
+          <div style={{textAlign: 'center', padding: '40px', color: '#ff6b6b'}}>
+            User not found
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // _____________________________________________________________
+  // RENDER: Limited Profile (Non-Friends)
+  // _____________________________________________________________
+  if (isLimitedProfile) {
+    return (
+      <div>
+        <Header />
+        <main className="page-container">
+          <div className="profile-container">
+            <aside className="profile-sidebar">
+              <div className="profile-avatar">
+                <svg viewBox="0 0 24 24" fill="#666">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+              </div>
+              
+              <div className="profile-info">
+                <h2>{profile.username}</h2>
+                
+                <div style={{
+                  padding: '20px',
+                  backgroundColor: '#2a2a2a',
+                  borderRadius: '8px',
+                  marginTop: '20px',
+                  textAlign: 'center'
+                }}>
+                  <p style={{color: '#888', marginBottom: '15px'}}>
+                    This profile is private. Send a friend request to view full details.
+                  </p>
+                  <button 
+                    className="btn btn-secondary"
+                    onClick={handleSendFriendRequest}
+                    style={{width: '100%'}}
+                  >
+                    Send Friend Request
+                  </button>
+                </div>
+              </div>
+            </aside>
+
+            <div className="profile-main">
+              <div style={{
+                textAlign: 'center',
+                padding: '60px 20px',
+                color: '#888'
+              }}>
+                <svg 
+                  viewBox="0 0 24 24" 
+                  fill="currentColor"
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    margin: '0 auto 20px',
+                    opacity: 0.3
+                  }}
+                >
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                </svg>
+                <h3 style={{color: '#b0b0b0', marginBottom: '10px'}}>
+                  Private Profile
+                </h3>
+                <p style={{color: '#666'}}>
+                  Become friends with {profile.username} to see their projects and activity
+                </p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // _____________________________________________________________
+  // RENDER: Full Profile (Own Profile or Friends)
+  // _____________________________________________________________
   return (
     <div>
       <Header />
@@ -227,12 +389,40 @@ function ProfilePage() {
                     >
                       {isEditing ? 'Cancel Edit' : 'Edit Profile'}
                     </button>
-                    <button className="btn btn-primary">
-                      View Friends ({profile.friends?.length || 0})
+                    
+                    <button 
+                      className="btn btn-secondary"
+                      onClick={() => setShowFriendsModal(true)}
+                    >
+                      View Friends
                     </button>
-                    <button className="btn btn-primary">
-                      Recycling Bin
+
+                    {profile.friendRequests && profile.friendRequests.length > 0 && (
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => setShowRequestsModal(true)}
+                        style={{
+                          position: 'relative',
+                          backgroundColor: '#d4ff00',
+                          color: '#1a1a1a',
+                          borderColor: '#d4ff00'
+                        }}
+                      >
+                        Friend Requests ({profile.friendRequests.length})
+                      </button>
+                    )}
+                    
+                    <button 
+                      className="btn btn-primary"
+                      onClick={handleDeleteProfile}
+                      style={{
+                        backgroundColor: '#ff6b6b',
+                        borderColor: '#ff6b6b'
+                      }}
+                    >
+                      Delete Profile
                     </button>
+                    
                     <button 
                       className="btn btn-secondary" 
                       onClick={() => setShowCreateProject(!showCreateProject)}
@@ -242,17 +432,19 @@ function ProfilePage() {
                   </>
                 ) : (
                   <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                    <button 
-                      className="btn btn-secondary"
-                      onClick={handleSendFriendRequest}
-                    >
-                      Send Friend Request
-                    </button>
-                    {profile.friends?.some(friend => friend._id === currentUserId) && (
+                    {!isFriend && (
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={handleSendFriendRequest}
+                      >
+                        Send Friend Request
+                      </button>
+                    )}
+                    {isFriend && (
                       <button 
                         className="btn btn-primary"
                         onClick={handleUnfriend}
-                        style={{backgroundColor: '#ff6b6b'}}
+                        style={{backgroundColor: '#ff6b6b', borderColor: '#ff6b6b'}}
                       >
                         Unfriend
                       </button>
@@ -317,7 +509,8 @@ function ProfilePage() {
                                 right: '10px',
                                 padding: '5px 10px',
                                 fontSize: '12px',
-                                backgroundColor: '#ff6b6b'
+                                backgroundColor: '#ff6b6b',
+                                borderColor: '#ff6b6b'
                               }}
                               onClick={() => handleDeleteProject(project._id)}
                             >
@@ -360,6 +553,21 @@ function ProfilePage() {
             )}
           </div>
         </div>
+
+        {/* Modals */}
+        {showFriendsModal && (
+          <FriendsModal 
+            userId={id} 
+            onClose={() => setShowFriendsModal(false)} 
+          />
+        )}
+
+        {showRequestsModal && (
+          <FriendRequests 
+            onClose={() => setShowRequestsModal(false)}
+            onUpdate={fetchUserData}
+          />
+        )}
       </main>
     </div>
   );

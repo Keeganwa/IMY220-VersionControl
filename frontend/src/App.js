@@ -5,6 +5,8 @@ import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
 import ProjectPage from './pages/ProjectPage';
 import './styles.css';
+import AdminPage from './pages/AdminPage';
+
 
 function App() {
   return (
@@ -14,6 +16,7 @@ function App() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/profile/:id" element={<ProfilePage />} />
         <Route path="/project/:id" element={<ProjectPage />} />
+        <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </Router>
   );

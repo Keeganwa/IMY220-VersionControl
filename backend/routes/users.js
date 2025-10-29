@@ -57,10 +57,24 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
-      .select('-password')
-      .populate('friends', 'username email occupation')
-      .populate('ownedProjects', 'name description createdAt')
-      .populate('sharedProjects', 'name description createdAt');
+      .populate('friends', 'username email')
+      .populate('friendRequests', 'username email')
+      .populate({
+        path: 'ownedProjects',
+        populate: [
+          { path: 'creator', select: 'username' },
+          { path: 'collaborators', select: 'username' },
+          { path: 'checkedOutBy', select: 'username' }
+        ]
+      })
+      .populate({
+        path: 'sharedProjects',
+        populate: [
+          { path: 'creator', select: 'username' },
+          { path: 'collaborators', select: 'username' },
+          { path: 'checkedOutBy', select: 'username' }
+        ]
+      });
 
     if (!user) {
       return res.status(404).json({
@@ -69,16 +83,55 @@ router.get('/:id', auth, async (req, res) => {
       });
     }
 
+    // Check if requesting user is viewing their own profile
+    const isOwnProfile = req.user._id.toString() === req.params.id;
+
+    // Check if requesting user is friends with this user
+    const isFriend = user.friends.some(
+      friend => friend._id.toString() === req.user._id.toString()
+    );
+
+    // If not own profile and not friends, return limited info
+    if (!isOwnProfile && !isFriend) {
+      return res.json({
+        success: true,
+        user: {
+          _id: user._id,
+          username: user.username,
+          email: user.email, // Just for friend request purposes
+          isFriend: false,
+          isOwnProfile: false
+        },
+        limitedProfile: true
+      });
+    }
+
+    // Return full profile for own profile or friends
     res.json({
       success: true,
-      user
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        occupation: user.occupation,
+        friends: user.friends,
+        friendRequests: isOwnProfile ? user.friendRequests : [], // Only show requests on own profile
+        ownedProjects: user.ownedProjects,
+        sharedProjects: user.sharedProjects,
+        createdAt: user.createdAt,
+        isAdmin: user.isAdmin,
+        isFriend: true,
+        isOwnProfile: isOwnProfile
+      },
+      limitedProfile: false
     });
 
   } catch (error) {
-    console.error('Get user by ID error:', error);
+    console.error('Get user error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error fetching user profil'
+      message: 'Server error fetching user'
     });
   }
 });
@@ -296,6 +349,58 @@ router.delete('/unfriend/:id', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error removing friend'
+    });
+  }
+});
+
+router.delete('/profile', auth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Get user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Delete user's projects
+    await Project.deleteMany({ creator: userId });
+
+    // Remove user from collaborators in other projects
+    await Project.updateMany(
+      { collaborators: userId },
+      { $pull: { collaborators: userId } }
+    );
+
+    // Delete user's activities
+    await Activity.deleteMany({ user: userId });
+
+    // Delete user's discussions
+    const Discussion = require('../models/Discussion');
+    await Discussion.deleteMany({ user: userId });
+
+    // Remove from friends lists
+    await User.updateMany(
+      { friends: userId },
+      { $pull: { friends: userId, friendRequests: userId } }
+    );
+
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+
+    res.json({
+      success: true,
+      message: 'Profile deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting profile'
     });
   }
 });

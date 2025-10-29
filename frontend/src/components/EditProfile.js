@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { userAPI } from '../services/api';
 
@@ -58,7 +57,7 @@ function EditProfile({ user, onClose, onSave }) {
       const response = await userAPI.updateProfile(formData);
       
       if (response.success) {
-        console.log('Profile updated succesfully');
+        console.log('Profile updated successfully');
         
         if (onSave) {
           onSave(response.user);
@@ -83,7 +82,13 @@ function EditProfile({ user, onClose, onSave }) {
       <h2>Edit Profile</h2>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="username">Username</label>
+          <label 
+            htmlFor="username"
+            onClick={() => document.getElementById('username').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Username
+          </label>
           <input
             type="text"
             id="username"
@@ -97,7 +102,13 @@ function EditProfile({ user, onClose, onSave }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="email">Email</label>
+          <label 
+            htmlFor="email"
+            onClick={() => document.getElementById('email').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Email
+          </label>
           <input
             type="email"
             id="email"
@@ -111,7 +122,13 @@ function EditProfile({ user, onClose, onSave }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="occupation">Occupation</label>
+          <label 
+            htmlFor="occupation"
+            onClick={() => document.getElementById('occupation').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Occupation
+          </label>
           <input
             type="text"
             id="occupation"
@@ -125,7 +142,13 @@ function EditProfile({ user, onClose, onSave }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="dateOfBirth">Date of Birth</label>
+          <label 
+            htmlFor="dateOfBirth"
+            onClick={() => document.getElementById('dateOfBirth').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Date of Birth
+          </label>
           <input
             type="date"
             id="dateOfBirth"

@@ -1,9 +1,3 @@
-
-// _____________________________________________________________
-// Frontend API Services
-// Central API calls
-// _____________________________________________________________
-
 const API_BASE_URL = 'http://localhost:5000/api';
 
 // Helper function to get auth token from localStorage
@@ -15,10 +9,18 @@ const getAuthToken = () => {
 const makeRequest = async (url, options = {}) => {
   const token = getAuthToken();
   
+  const defaultHeaders = token ? {
+    'Authorization': `Bearer ${token}`
+  } : {};
+
+  // Don't add Content-Type for FormData (browser sets it automatically with boundary)
+  if (!(options.body instanceof FormData)) {
+    defaultHeaders['Content-Type'] = 'application/json';
+  }
+
   const config = {
     headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
+      ...defaultHeaders,
       ...options.headers
     },
     ...options
@@ -40,8 +42,7 @@ const makeRequest = async (url, options = {}) => {
 };
 
 // _____________________________________________________________
-//  Authentication 
-
+// Authentication 
 // _____________________________________________________________
 
 export const authAPI = {
@@ -66,10 +67,9 @@ export const authAPI = {
     return await makeRequest('/auth/me');
   }
 };
-//--------------------------------------------------------------
+
 // _____________________________________________________________
 // User Management 
-
 // _____________________________________________________________
 
 export const userAPI = {
@@ -111,14 +111,18 @@ export const userAPI = {
     return await makeRequest(`/users/unfriend/${userId}`, {
       method: 'DELETE'
     });
+  },
+
+  // Delete own profile
+  deleteOwnProfile: async () => {
+    return await makeRequest('/users/profile', {
+      method: 'DELETE'
+    });
   }
 };
-//--------------------------------------------------------------
-
-
 
 // _____________________________________________________________
-//  Project Management
+// Project Management
 // _____________________________________________________________
 
 export const projectAPI = {
@@ -136,14 +140,15 @@ export const projectAPI = {
     return await makeRequest(`/projects/${projectId}`);
   },
 
-  // Create new project
+  // Create new project (with FormData for file upload)
   createProject: async (projectData) => {
+    const isFormData = projectData instanceof FormData;
+    
     return await makeRequest('/projects', {
       method: 'POST',
-      body: JSON.stringify(projectData)
+      body: isFormData ? projectData : JSON.stringify(projectData)
     });
   },
-
 
   // Update project
   updateProject: async (projectId, projectData) => {
@@ -152,10 +157,6 @@ export const projectAPI = {
       body: JSON.stringify(projectData)
     });
   },
-
-
-
-
 
   // Delete project
   deleteProject: async (projectId) => {
@@ -171,19 +172,45 @@ export const projectAPI = {
     });
   },
 
-
   // Checkin project with changes
   checkinProject: async (projectId, checkinData) => {
     return await makeRequest(`/projects/${projectId}/checkin`, {
       method: 'POST',
       body: JSON.stringify(checkinData)
     });
+  },
+
+  // Add collaborator to project
+  addCollaborator: async (projectId, userId) => {
+    return await makeRequest(`/projects/${projectId}/collaborators`, {
+      method: 'POST',
+      body: JSON.stringify({ userId })
+    });
+  },
+
+  // Remove collaborator from project
+  removeCollaborator: async (projectId, userId) => {
+    return await makeRequest(`/projects/${projectId}/collaborators/${userId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // Download file
+  downloadFile: async (projectId, fileName) => {
+    return await makeRequest(`/projects/${projectId}/files/${encodeURIComponent(fileName)}`);
+  },
+  
+  
+  transferOwnership: async (projectId, newOwnerId) => {
+    return await makeRequest(`/projects/${projectId}/transfer-ownership`, {
+      method: 'PUT',
+      body: JSON.stringify({ newOwnerId })
+    });
   }
 };
-//--------------------------------------------------------------
-// _____________________________________________________________
-//  Activity Feed
 
+// _____________________________________________________________
+// Activity Feed
 // _____________________________________________________________
 
 export const activityAPI = {
@@ -204,11 +231,102 @@ export const activityAPI = {
     const params = new URLSearchParams({ limit: limit.toString() });
     return await makeRequest(`/activities/user/${userId}?${params}`);
   }
+,
+  searchActivities: async (query) => {
+    const params = new URLSearchParams({ query });
+    return await makeRequest(`/activities/search?${params}`);
+  }
+};
+
+// _____________________________________________________________
+// Discussion Board
+// _____________________________________________________________
+
+export const discussionAPI = {
+  // Get discussions for a project
+  getProjectDiscussions: async (projectId) => {
+    return await makeRequest(`/discussions/project/${projectId}`);
+  },
+
+  // Create new discussion/comment
+  createDiscussion: async (discussionData) => {
+    return await makeRequest('/discussions', {
+      method: 'POST',
+      body: JSON.stringify(discussionData)
+    });
+  },
+
+  // Update discussion
+  updateDiscussion: async (discussionId, message) => {
+    return await makeRequest(`/discussions/${discussionId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ message })
+    });
+  },
+
+  // Delete discussion
+  deleteDiscussion: async (discussionId) => {
+    return await makeRequest(`/discussions/${discussionId}`, {
+      method: 'DELETE'
+    });
+  }
+};
+
+// _____________________________________________________________
+// Admin Management
+// _____________________________________________________________
+
+export const adminAPI = {
+  // Get all users
+  getAllUsers: async () => {
+    return await makeRequest('/admin/users');
+  },
+
+  // Delete user
+  deleteUser: async (userId) => {
+    return await makeRequest(`/admin/users/${userId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // Update user
+  updateUser: async (userId, userData) => {
+    return await makeRequest(`/admin/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData)
+    });
+  },
+
+  // Delete project
+  deleteProject: async (projectId) => {
+    return await makeRequest(`/admin/projects/${projectId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // Delete activity
+  deleteActivity: async (activityId) => {
+    return await makeRequest(`/admin/activities/${activityId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // Get project types
+  getProjectTypes: async () => {
+    return await makeRequest('/admin/project-types');
+  },
+
+  // Add project type
+  addProjectType: async (typeName) => {
+    return await makeRequest('/admin/project-types', {
+      method: 'POST',
+      body: JSON.stringify({ typeName })
+    });
+  }
 };
 
 // _____________________________________________________________
 // Helper Functions
-
 // _____________________________________________________________
 
 export const apiUtils = {
@@ -217,10 +335,17 @@ export const apiUtils = {
     return !!getAuthToken();
   },
 
+  // Get current user ID
+  getCurrentUserId: () => {
+    return localStorage.getItem('userId');
+  },
+
   // Logout user
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
+    localStorage.removeItem('username');
+    window.location.href = '/';
   },
 
   // Check API health
@@ -234,4 +359,3 @@ export const apiUtils = {
     }
   }
 };
-//--------------------------------------------------------------

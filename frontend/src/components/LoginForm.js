@@ -72,7 +72,7 @@ function LoginForm() {
         localStorage.setItem('userId', response.user.id);
         localStorage.setItem('username', response.user.username);
         
-        console.log('Login succesful:', response.user.username);
+        console.log('Login successful:', response.user.username);
         
         // Navigate to home page
         navigate('/home');
@@ -80,7 +80,7 @@ function LoginForm() {
     } catch (error) {
       console.error('Login error:', error);
       setErrors({ 
-        submit: error.message || 'Failed to login. Please check your credentals.' 
+        submit: error.message || 'Failed to login. Please check your credentials.' 
       });
     } finally {
       setIsLoading(false);
@@ -92,7 +92,13 @@ function LoginForm() {
       <h2>Sign In</h2>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="email">Email</label>
+          <label 
+            htmlFor="email"
+            onClick={() => document.getElementById('email').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Email
+          </label>
           <input
             type="email"
             id="email"
@@ -106,7 +112,13 @@ function LoginForm() {
         </div>
 
         <div className="form-group">
-          <label htmlFor="password">Password</label>
+          <label 
+            htmlFor="password"
+            onClick={() => document.getElementById('password').focus()}
+            style={{cursor: 'pointer'}}
+          >
+            Password
+          </label>
           <input
             type="password"
             id="password"
