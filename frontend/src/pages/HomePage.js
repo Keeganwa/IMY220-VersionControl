@@ -4,6 +4,8 @@ import Header from '../components/Header';
 import ProjectPreview from '../components/ProjectPreview';
 import { apiUtils, userAPI, projectAPI, activityAPI } from '../services/api';
 
+import UserLink from '../components/UserLink'; 
+
 function HomePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -263,7 +265,7 @@ function HomePage() {
                         e.currentTarget.style.transform = 'translateY(0)';
                       }}
                     >
-                      <strong style={{color: '#d4ff00'}}>{user.username}</strong>
+                     <UserLink user={user} style={{color: '#d4ff00', fontWeight: 'bold'}} />
                       <div style={{color: '#888', fontSize: '14px', marginTop: '5px'}}>
                         {user.email}
                       </div>
@@ -336,9 +338,7 @@ function HomePage() {
                         )}
                         <div style={{flex: 1}}>
                           <div style={{marginBottom: '8px'}}>
-                            <span style={{color: '#5b9bff', fontWeight: '500'}}>
-                              {activity.user?.username}
-                            </span>
+                            <UserLink user={activity.user} />
                             {' '}
                             <span style={{color: '#888'}}>
                               {activity.action.replace('_', ' ')}
@@ -487,7 +487,7 @@ function HomePage() {
 
                       <div style={{flex: 1}}>
                         <div style={{marginBottom: '8px'}}>
-                          <span className="activity-user">{activity.user?.username}</span>
+                         <UserLink user={activity.user} className="activity-user" />
                           {' '}
                           <span className={`activity-action ${activity.action}`}>
                             {activity.action.replace('_', ' ')}

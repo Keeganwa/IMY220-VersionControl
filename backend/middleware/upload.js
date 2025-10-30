@@ -64,13 +64,13 @@ const imageFileFilter = (req, file, cb) => {
 // Multer Upload Configurations
 // _____________________________________________________________
 
-// For project files (multiple files, any type)
+// For project files (multiple files, any type, unlimited count)
 const uploadProjectFiles = multer({
   storage: projectFileStorage,
   limits: {
     fileSize: 50 * 1024 * 1024 // 50MB per file
   }
-}).array('files', 20); // Max 20 files
+}).array('files'); // No limit on count
 
 // For project images (single image, 5MB max)
 const uploadProjectImage = multer({
@@ -95,7 +95,7 @@ const handleMulterError = (err, req, res, next) => {
     if (err.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({
         success: false,
-        message: 'Too many files. Maximum is 20 files per upload.'
+        message: 'Too many files uploaded.'
       });
     }
     return res.status(400).json({
@@ -117,5 +117,7 @@ const handleMulterError = (err, req, res, next) => {
 module.exports = {
   uploadProjectFiles,
   uploadProjectImage,
-  handleMulterError
+  handleMulterError,
+  projectFilesDir,
+  projectImagesDir
 };

@@ -13,6 +13,7 @@ function CreateProject({ onClose, onSubmit }) {
   const [projectTypes, setProjectTypes] = useState([]);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [projectFiles, setProjectFiles] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -64,6 +65,23 @@ function CreateProject({ onClose, onSubmit }) {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // _____________________________________________________________
+  // Handle Project Files Upload (Multiple Files)
+  // _____________________________________________________________
+  const handleProjectFilesChange = (e) => {
+    const files = Array.from(e.target.files);
+
+    // Validate individual file sizes (max 50MB each)
+    const oversizedFiles = files.filter(file => file.size > 50 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      alert(`Some files exceed 50MB limit: ${oversizedFiles.map(f => f.name).join(', ')}`);
+      e.target.value = '';
+      return;
+    }
+
+    setProjectFiles(files);
   };
 
   const handleChange = (e) => {
@@ -136,6 +154,11 @@ function CreateProject({ onClose, onSubmit }) {
       if (imageFile) {
         formData.append('image', imageFile);
       }
+
+      // Append all project files
+      projectFiles.forEach(file => {
+        formData.append('files', file);
+      });
 
       const response = await projectAPI.createProject(formData);
       
@@ -290,6 +313,38 @@ function CreateProject({ onClose, onSubmit }) {
                   border: '2px solid #333'
                 }}
               />
+            </div>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="projectFiles">Project Files (Multiple files allowed, 50MB each max)</label>
+          <input
+            type="file"
+            id="projectFiles"
+            multiple
+            onChange={handleProjectFilesChange}
+            disabled={isLoading}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              backgroundColor: '#1f1f1f',
+              border: '2px solid #333',
+              borderRadius: '8px',
+              color: '#e0e0e0',
+              fontSize: '14px'
+            }}
+          />
+          {projectFiles.length > 0 && (
+            <div style={{marginTop: '10px'}}>
+              <small style={{color: '#888'}}>
+                {projectFiles.length} file(s) selected:
+              </small>
+              <ul style={{color: '#b0b0b0', fontSize: '13px', marginTop: '5px', paddingLeft: '20px'}}>
+                {projectFiles.map((file, index) => (
+                  <li key={index}>{file.name} ({(file.size / 1024).toFixed(2)} KB)</li>
+                ))}
+              </ul>
             </div>
           )}
         </div>

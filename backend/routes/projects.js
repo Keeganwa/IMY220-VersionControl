@@ -1,62 +1,48 @@
-// _____________________________________________________________
-// Project Manage
-
-// _____________________________________________________________
-
 const express = require('express');
-const Project = require('../models/Project');
-const Activity = require('../models/Activity');
-const User = require('../models/User');
-const { auth } = require('../middleware/auth');
 const router = express.Router();
-const { uploadProjectFiles, uploadProjectImage, handleMulterError } = require('../middleware/upload');
+const Project = require('../models/Project');
+const User = require('../models/User');
+const Activity = require('../models/Activity');
+const auth = require('../middleware/auth');
+const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const archiver = require('archiver');
+const { uploadProjectFiles, handleMulterError, projectFilesDir, projectImagesDir } = require('../middleware/upload');
 
 // _____________________________________________________________
-// All Projects 
-// GET /api/projects
+// Get All Projects with Search and Feed Type
+// GET /api/projects?feed=local|global&search=term
 // _____________________________________________________________
 router.get('/', auth, async (req, res) => {
   try {
-    const { feed = 'global', search = '' } = req.query;
+    const { feed, search } = req.query;
     let query = {};
 
-    if (feed === 'local') {
-      // Get projects user is member of or created
-      query = {
-        $or: [
-          { creator: req.user._id },
-          { collaborators: req.user._id }
-        ]
-      };
+    // Apply search filter
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { tags: { $in: [new RegExp(search, 'i')] } }
+      ];
     }
 
-    // Enhanced search: name, description, tags, type, OR check-in messages
-    if (search) {
-      const searchRegex = new RegExp(search, 'i');
-      
-      // Find activities with matching check-in messages
-      const matchingActivities = await Activity.find({
-        action: 'checked_in',
-        message: searchRegex
-      }).distinct('project');
-
+    // Apply feed filter
+    if (feed === 'local') {
+      const user = await User.findById(req.user._id);
+      const friendIds = user.friends || [];
       query.$or = [
-        { name: searchRegex },
-        { description: searchRegex },
-        { tags: searchRegex },
-        { type: searchRegex },
-        { _id: { $in: matchingActivities } }
+        { creator: { $in: [...friendIds, req.user._id] } },
+        { collaborators: { $in: [...friendIds, req.user._id] } }
       ];
     }
 
     const projects = await Project.find(query)
       .populate('creator', 'username email')
       .populate('collaborators', 'username email')
-      .populate('checkedOutBy', 'username')
-      .sort({ createdAt: -1 })
-      .limit(50);
+      .populate('checkedOutBy', 'username email')
+      .sort({ updatedAt: -1 });
 
     res.json({
       success: true,
@@ -71,113 +57,23 @@ router.get('/', auth, async (req, res) => {
     });
   }
 });
-//--------------------------------------------------------------
 
 // _____________________________________________________________
-// Create New Project
-// POST /api/projects
-// _____________________________________________________________
-router.post('/', auth, (req, res, next) => {
-  uploadProjectImage(req, res, (err) => {
-    if (err) {
-      return handleMulterError(err, req, res, next);
-    }
-    next();
-  });
-}, async (req, res) => {
-  try {
-    const { name, description, tags, type, version, isPublic } = req.body;
-
-    // Validate required fields
-    if (!name || !description || !type) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name, description, and type are required'
-      });
-    }
-
-    // Parse tags if it's a string
-    let tagsArray = [];
-    if (tags) {
-      tagsArray = typeof tags === 'string' ? JSON.parse(tags) : tags;
-    }
-
-    // Create project data
-    const projectData = {
-      name,
-      description,
-      tags: tagsArray,
-      type,
-      version: version || '1.0.0',
-      isPublic: isPublic === 'true' || isPublic === true,
-      creator: req.user._id,
-      collaborators: []
-    };
-
-    // Add image if uploaded
-    if (req.file) {
-      projectData.image = `/uploads/images/${req.file.filename}`;
-    }
-
-    const project = new Project(projectData);
-    await project.save();
-
-    // Add to user's owned projects
-    await User.findByIdAndUpdate(req.user._id, {
-      $push: { ownedProjects: project._id }
-    });
-
-    // Create activity
-    await Activity.create({
-      user: req.user._id,
-      action: 'created_project',
-      project: project._id,
-      details: `Created project: ${project.name}`
-    });
-
-    // Populate creator before sending response
-    await project.populate('creator', 'username email');
-
-    res.status(201).json({
-      success: true,
-      message: 'Project created successfully',
-      project
-    });
-
-  } catch (error) {
-    console.error('Create project error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error creating project'
-    });
-  }
-});
-//--------------------------------------------------------------
-
-// _____________________________________________________________
-//  Single Project
+// Get Project by ID
 // GET /api/projects/:id
 // _____________________________________________________________
 router.get('/:id', auth, async (req, res) => {
   try {
     const project = await Project.findById(req.params.id)
-      .populate('creator', 'username email occupation')
+      .populate('creator', 'username email')
       .populate('collaborators', 'username email')
-      .populate('checkedOutBy', 'username')
-      .populate('files.uploadedBy', 'username');
+      .populate('checkedOutBy', 'username email')
+      .populate('files.uploadedBy', 'username email');
 
     if (!project) {
       return res.status(404).json({
         success: false,
         message: 'Project not found'
-      });
-    }
-
-    // Check if user has access to view this project
-    if (!project.isPublic && !project.hasAccess(req.user._id)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied to this project'
       });
     }
 
@@ -194,14 +90,140 @@ router.get('/:id', auth, async (req, res) => {
     });
   }
 });
-//--------------------------------------------------------------
 
 // _____________________________________________________________
-//  Update Project
+// Create New Project
+// POST /api/projects
+// _____________________________________________________________
+router.post('/', auth, (req, res, next) => {
+  const upload = multer({
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => {
+        if (file.fieldname === 'image') {
+          cb(null, projectImagesDir);
+        } else {
+          cb(null, projectFilesDir);
+        }
+      },
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + '-' + file.originalname);
+      }
+    }),
+    limits: {
+      fileSize: (req, file, cb) => {
+        if (file.fieldname === 'image') {
+          cb(null, 5 * 1024 * 1024);
+        } else {
+          cb(null, 50 * 1024 * 1024);
+        }
+      }
+    },
+    fileFilter: (req, file, cb) => {
+      if (file.fieldname === 'image') {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        if (mimetype && extname) {
+          return cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed for project image'));
+        }
+      } else {
+        cb(null, true);
+      }
+    }
+  }).fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'files', maxCount: 100 }
+  ]);
+
+  upload(req, res, (err) => {
+    if (err) {
+      return handleMulterError(err, req, res, next);
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    const { name, description, tags, type, version, isPublic } = req.body;
+
+    if (!name || !description || !type) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, description, and type are required'
+      });
+    }
+
+    let tagsArray = [];
+    if (tags) {
+      tagsArray = typeof tags === 'string' ? JSON.parse(tags) : tags;
+    }
+
+    const projectData = {
+      name,
+      description,
+      tags: tagsArray,
+      type,
+      version: version || '1.0.0',
+      isPublic: isPublic === 'true' || isPublic === true,
+      creator: req.user._id,
+      collaborators: [],
+      files: []
+    };
+
+    if (req.files && req.files.image && req.files.image[0]) {
+      projectData.image = `/uploads/images/${req.files.image[0].filename}`;
+    }
+
+    if (req.files && req.files.files) {
+      projectData.files = req.files.files.map(file => ({
+        name: file.originalname,
+        path: `/uploads/projects/${file.filename}`,
+        size: `${(file.size / 1024).toFixed(2)} KB`,
+        uploadedBy: req.user._id,
+        uploadedAt: new Date()
+      }));
+    }
+
+    const project = new Project(projectData);
+    await project.save();
+
+    await User.findByIdAndUpdate(req.user._id, {
+      $push: { ownedProjects: project._id }
+    });
+
+    await Activity.create({
+      user: req.user._id,
+      action: 'created_project',
+      project: project._id,
+      details: `Created project: ${project.name}`
+    });
+
+    await project.populate('creator', 'username email');
+
+    res.status(201).json({
+      success: true,
+      message: 'Project created successfully',
+      project
+    });
+
+  } catch (error) {
+    console.error('Create project error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error creating project'
+    });
+  }
+});
+
+// _____________________________________________________________
+// Update Project
 // PUT /api/projects/:id
 // _____________________________________________________________
 router.put('/:id', auth, async (req, res) => {
   try {
+    const { name, description, tags, type, isPublic } = req.body;
     const project = await Project.findById(req.params.id);
 
     if (!project) {
@@ -211,32 +233,32 @@ router.put('/:id', auth, async (req, res) => {
       });
     }
 
-    // Only creator can update project details
     if (project.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Only project creator can update project details'
+        message: 'Only the project owner can update project details'
       });
     }
 
-    const { name, description, tags, isPublic } = req.body;
+    if (name) project.name = name;
+    if (description) project.description = description;
+    if (tags) project.tags = tags;
+    if (type) project.type = type;
+    if (isPublic !== undefined) project.isPublic = isPublic;
 
-    const updatedProject = await Project.findByIdAndUpdate(
-      req.params.id,
-      {
-        name,
-        description,
-        tags: Array.isArray(tags) ? tags : tags.split(',').map(tag => tag.trim()),
-        isPublic
-      },
-      { new: true, runValidators: true }
-    ).populate('creator', 'username email')
-     .populate('collaborators', 'username email');
+    await project.save();
+
+    await Activity.create({
+      user: req.user._id,
+      action: 'updated_project',
+      project: project._id,
+      details: `Updated project: ${project.name}`
+    });
 
     res.json({
       success: true,
       message: 'Project updated successfully',
-      project: updatedProject
+      project
     });
 
   } catch (error) {
@@ -247,10 +269,9 @@ router.put('/:id', auth, async (req, res) => {
     });
   }
 });
-//--------------------------------------------------------------
 
 // _____________________________________________________________
-//  Delete Project 
+// Delete Project
 // DELETE /api/projects/:id
 // _____________________________________________________________
 router.delete('/:id', auth, async (req, res) => {
@@ -264,30 +285,35 @@ router.delete('/:id', auth, async (req, res) => {
       });
     }
 
-    // Only creator can delete project
     if (project.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Only project creator can delete project'
+        message: 'Only the project owner can delete the project'
       });
     }
 
-    // Remove from user's owned projects
-    await User.findByIdAndUpdate(req.user._id, {
-      $pull: { ownedProjects: project._id }
-    });
+    // Delete project files from filesystem
+    for (const file of project.files) {
+      const filePath = path.join(__dirname, '..', file.path);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
 
-    // Remove from collaborators' shared projects
-    await User.updateMany(
-      { _id: { $in: project.collaborators } },
-      { $pull: { sharedProjects: project._id } }
-    );
+    // Delete project image
+    if (project.image) {
+      const imagePath = path.join(__dirname, '..', project.image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
 
-    // Delete related activities
-    await Activity.deleteMany({ project: project._id });
-
-    // Delete the project
     await Project.findByIdAndDelete(req.params.id);
+    await Activity.deleteMany({ project: req.params.id });
+    await User.updateMany(
+      { $or: [{ ownedProjects: req.params.id }, { sharedProjects: req.params.id }] },
+      { $pull: { ownedProjects: req.params.id, sharedProjects: req.params.id } }
+    );
 
     res.json({
       success: true,
@@ -302,18 +328,14 @@ router.delete('/:id', auth, async (req, res) => {
     });
   }
 });
-//--------------------------------------------------------------
 
 // _____________________________________________________________
-// Transfer Project Ownership
-// PUT /api/projects/:id/transfer-ownership
+// Checkout Project
+// POST /api/projects/:id/checkout
 // _____________________________________________________________
-router.put('/:id/transfer-ownership', auth, async (req, res) => {
+router.post('/:id/checkout', auth, async (req, res) => {
   try {
-    const { newOwnerId } = req.body;
-    const project = await Project.findById(req.params.id)
-      .populate('creator', 'username email')
-      .populate('collaborators', 'username email');
+    const project = await Project.findById(req.params.id);
 
     if (!project) {
       return res.status(404).json({
@@ -322,105 +344,234 @@ router.put('/:id/transfer-ownership', auth, async (req, res) => {
       });
     }
 
-    // Only the current owner can transfer ownership
-    if (project.creator._id.toString() !== req.user._id.toString()) {
+    const isCollaborator = project.collaborators.some(
+      collab => collab.toString() === req.user._id.toString()
+    );
+    const isOwner = project.creator.toString() === req.user._id.toString();
+
+    if (!isOwner && !isCollaborator) {
       return res.status(403).json({
         success: false,
-        message: 'Only the project owner can transfer ownership'
+        message: 'Only project members can check out the project'
       });
     }
 
-    // Check if new owner ID is provided
-    if (!newOwnerId) {
+    if (project.checkedOutBy) {
       return res.status(400).json({
         success: false,
-        message: 'New owner ID is required'
+        message: 'Project is already checked out by another user'
       });
     }
 
-    // Check if new owner is a collaborator
-    const isCollaborator = project.collaborators.some(
-      collab => collab._id.toString() === newOwnerId
-    );
-
-    if (!isCollaborator) {
-      return res.status(400).json({
-        success: false,
-        message: 'New owner must be a project collaborator'
-      });
-    }
-
-    // Cannot transfer to yourself
-    if (newOwnerId === req.user._id.toString()) {
-      return res.status(400).json({
-        success: false,
-        message: 'You are already the owner'
-      });
-    }
-
-    const oldOwner = project.creator;
-    const newOwner = await User.findById(newOwnerId);
-
-    if (!newOwner) {
-      return res.status(404).json({
-        success: false,
-        message: 'New owner not found'
-      });
-    }
-
-    // Remove new owner from collaborators
-    project.collaborators = project.collaborators.filter(
-      collab => collab._id.toString() !== newOwnerId
-    );
-
-    // Add old owner to collaborators
-    project.collaborators.push(req.user._id);
-
-    // Transfer ownership
-    project.creator = newOwnerId;
-
+    project.checkedOutBy = req.user._id;
     await project.save();
 
-    // Update user's project lists
-    await User.findByIdAndUpdate(req.user._id, {
-      $pull: { ownedProjects: project._id },
-      $addToSet: { sharedProjects: project._id }
-    });
-
-    await User.findByIdAndUpdate(newOwnerId, {
-      $addToSet: { ownedProjects: project._id },
-      $pull: { sharedProjects: project._id }
-    });
-
-    // Create activity
     await Activity.create({
       user: req.user._id,
-      action: 'transferred_ownership',
+      action: 'checked_out',
       project: project._id,
-      details: `Transferred ownership to ${newOwner.username}`
+      details: `Checked out project: ${project.name}`
     });
 
-    // Populate again for response
-    await project.populate('creator', 'username email');
-    await project.populate('collaborators', 'username email');
+    await project.populate('creator collaborators checkedOutBy');
 
     res.json({
       success: true,
-      message: `Ownership transferred to ${newOwner.username}`,
+      message: 'Project checked out successfully',
       project
     });
 
   } catch (error) {
-    console.error('Transfer ownership error:', error);
+    console.error('Checkout error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error transferring ownership'
+      message: 'Server error during checkout'
     });
   }
 });
 
 // _____________________________________________________________
-// Add Collaborator to Project
+// Checkin Project
+// POST /api/projects/:id/checkin
+// _____________________________________________________________
+router.post('/:id/checkin', auth, (req, res, next) => {
+  uploadProjectFiles(req, res, (err) => {
+    if (err) {
+      return handleMulterError(err, req, res, next);
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    const { message, version } = req.body;
+    const projectId = req.params.id;
+
+    if (!message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Check-in message is required'
+      });
+    }
+
+    const project = await Project.findById(projectId);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (!project.checkedOutBy || project.checkedOutBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the user who checked out the project can check it in'
+      });
+    }
+
+    // REPLACE all files (delete old ones from filesystem)
+    for (const oldFile of project.files) {
+      const oldFilePath = path.join(__dirname, '..', oldFile.path);
+      if (fs.existsSync(oldFilePath)) {
+        fs.unlinkSync(oldFilePath);
+      }
+    }
+
+    // Set new files (replaces old array)
+    const newFiles = req.files ? req.files.map(file => ({
+      name: file.originalname,
+      path: `/uploads/projects/${file.filename}`,
+      size: `${(file.size / 1024).toFixed(2)} KB`,
+      uploadedBy: req.user._id,
+      uploadedAt: new Date()
+    })) : [];
+
+    project.files = newFiles;
+    project.checkedOutBy = null;
+    project.version = version || project.version;
+    project.updatedAt = new Date();
+
+    await project.save();
+
+    await Activity.create({
+      user: req.user._id,
+      action: 'checked_in',
+      project: project._id,
+      message: message,
+      details: `Checked in project: ${project.name}`
+    });
+
+    await project.populate('creator collaborators checkedOutBy');
+
+    res.json({
+      success: true,
+      message: 'Project checked in successfully',
+      project
+    });
+
+  } catch (error) {
+    console.error('Checkin error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during check-in'
+    });
+  }
+});
+
+// _____________________________________________________________
+// Download All Project Files as ZIP
+// GET /api/projects/:id/download-all
+// _____________________________________________________________
+router.get('/:id/download-all', auth, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (project.files.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No files available for download'
+      });
+    }
+
+    const archive = archiver('zip', {
+      zlib: { level: 9 }
+    });
+
+    res.attachment(`${project.name}_files.zip`);
+    archive.pipe(res);
+
+    for (const file of project.files) {
+      const filePath = path.join(__dirname, '..', file.path);
+      
+      if (fs.existsSync(filePath)) {
+        archive.file(filePath, { name: file.name });
+      }
+    }
+
+    await archive.finalize();
+
+  } catch (error) {
+    console.error('Download all files error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to download files'
+    });
+  }
+});
+
+// _____________________________________________________________
+// Download Single File
+// GET /api/projects/:id/files/:fileName
+// _____________________________________________________________
+router.get('/:id/files/:fileName', auth, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    const file = project.files.find(f => f.name === req.params.fileName);
+
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found'
+      });
+    }
+
+    const filePath = path.join(__dirname, '..', file.path);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found on server'
+      });
+    }
+
+    res.download(filePath, file.name);
+
+  } catch (error) {
+    console.error('Download file error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to download file'
+    });
+  }
+});
+
+// _____________________________________________________________
+// Add Collaborator
 // POST /api/projects/:id/collaborators
 // _____________________________________________________________
 router.post('/:id/collaborators', auth, async (req, res) => {
@@ -435,24 +586,18 @@ router.post('/:id/collaborators', auth, async (req, res) => {
       });
     }
 
-    // Only creator can add collaborators
-    if (project.creator.toString() !== req.user._id.toString()) {
+    const isCollaborator = project.collaborators.some(
+      collab => collab.toString() === req.user._id.toString()
+    );
+    const isOwner = project.creator.toString() === req.user._id.toString();
+
+    if (!isOwner && !isCollaborator) {
       return res.status(403).json({
         success: false,
-        message: 'Only project creator can add collaborators'
+        message: 'Only project members can add collaborators'
       });
     }
 
-    // Check if user exists
-    const userToAdd = await User.findById(userId);
-    if (!userToAdd) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // Check if already a collaborator
     if (project.collaborators.includes(userId)) {
       return res.status(400).json({
         success: false,
@@ -460,34 +605,19 @@ router.post('/:id/collaborators', auth, async (req, res) => {
       });
     }
 
-    // Check if user is the creator
-    if (project.creator.toString() === userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Project creator is automatically included'
-      });
-    }
-
-    // Add collaborator
     project.collaborators.push(userId);
     await project.save();
 
-    // Add project to user's shared projects
     await User.findByIdAndUpdate(userId, {
-      $addToSet: { sharedProjects: project._id }
+      $push: { sharedProjects: project._id }
     });
 
-    // Create activity
     await Activity.create({
       user: req.user._id,
-      action: 'joined_project',
+      action: 'added_collaborator',
       project: project._id,
-      details: `Added ${userToAdd.username} as collaborator`
+      details: `Added collaborator to project: ${project.name}`
     });
-
-    // Populate and return
-    await project.populate('creator', 'username email');
-    await project.populate('collaborators', 'username email');
 
     res.json({
       success: true,
@@ -505,12 +635,11 @@ router.post('/:id/collaborators', auth, async (req, res) => {
 });
 
 // _____________________________________________________________
-// Remove Collaborator from Project
+// Remove Collaborator
 // DELETE /api/projects/:id/collaborators/:userId
 // _____________________________________________________________
 router.delete('/:id/collaborators/:userId', auth, async (req, res) => {
   try {
-    const { userId } = req.params;
     const project = await Project.findById(req.params.id);
 
     if (!project) {
@@ -520,46 +649,21 @@ router.delete('/:id/collaborators/:userId', auth, async (req, res) => {
       });
     }
 
-    // Only creator can remove collaborators
     if (project.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Only project creator can remove collaborators'
+        message: 'Only the project owner can remove collaborators'
       });
     }
 
-    // Check if user is a collaborator
-    if (!project.collaborators.includes(userId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'User is not a collaborator'
-      });
-    }
-
-    const userToRemove = await User.findById(userId);
-
-    // Remove collaborator
     project.collaborators = project.collaborators.filter(
-      collab => collab.toString() !== userId
+      collab => collab.toString() !== req.params.userId
     );
     await project.save();
 
-    // Remove project from user's shared projects
-    await User.findByIdAndUpdate(userId, {
+    await User.findByIdAndUpdate(req.params.userId, {
       $pull: { sharedProjects: project._id }
     });
-
-    // Create activity
-    await Activity.create({
-      user: req.user._id,
-      action: 'left_project',
-      project: project._id,
-      details: `Removed ${userToRemove?.username || 'user'} as collaborator`
-    });
-
-    // Populate and return
-    await project.populate('creator', 'username email');
-    await project.populate('collaborators', 'username email');
 
     res.json({
       success: true,
@@ -577,11 +681,12 @@ router.delete('/:id/collaborators/:userId', auth, async (req, res) => {
 });
 
 // _____________________________________________________________
-// Project Checkout/Checkin System
-// POST /api/projects/:id/checkout - Check out project for editing
+// Transfer Ownership
+// PUT /api/projects/:id/transfer-ownership
 // _____________________________________________________________
-router.post('/:id/checkout', auth, async (req, res) => {
+router.put('/:id/transfer-ownership', auth, async (req, res) => {
   try {
+    const { newOwnerId } = req.body;
     const project = await Project.findById(req.params.id);
 
     if (!project) {
@@ -591,208 +696,61 @@ router.post('/:id/checkout', auth, async (req, res) => {
       });
     }
 
-    // Check if user has access
-    if (!project.hasAccess(req.user._id)) {
+    if (project.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied to this project'
+        message: 'Only the project owner can transfer ownership'
       });
     }
 
-    // Check if project is available for checkout
-    if (!project.isAvailableForCheckout()) {
+    const isCollaborator = project.collaborators.some(
+      collab => collab.toString() === newOwnerId
+    );
+
+    if (!isCollaborator) {
       return res.status(400).json({
         success: false,
-        message: 'Project is already checked out by another user'
+        message: 'New owner must be a collaborator'
       });
     }
 
-    // Check out project
-    project.checkedOutBy = req.user._id;
-    project.checkedOutAt = new Date();
+    const oldOwnerId = project.creator;
+    project.creator = newOwnerId;
+    project.collaborators = project.collaborators.filter(
+      collab => collab.toString() !== newOwnerId
+    );
+    project.collaborators.push(oldOwnerId);
+
     await project.save();
 
-    // Create activity record
+    await User.findByIdAndUpdate(oldOwnerId, {
+      $pull: { ownedProjects: project._id },
+      $push: { sharedProjects: project._id }
+    });
+
+    await User.findByIdAndUpdate(newOwnerId, {
+      $pull: { sharedProjects: project._id },
+      $push: { ownedProjects: project._id }
+    });
+
     await Activity.create({
       user: req.user._id,
-      action: 'checked_out',
+      action: 'transferred_ownership',
       project: project._id,
-      details: 'Checked out project for editing'
+      details: `Transferred ownership of project: ${project.name}`
     });
 
     res.json({
       success: true,
-      message: 'Project checked out successfully'
-    });
-
-  } catch (error) {
-    console.error('Checkout project error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error checking out project'
-    });
-  }
-});
-
-// _____________________________________________________________
-// Project Check-in with Files
-// POST /api/projects/:id/checkin - Check in project with changes
-// _____________________________________________________________
-router.post('/:id/checkin', auth, (req, res, next) => {
-  uploadProjectFiles(req, res, (err) => {
-    if (err) {
-      return handleMulterError(err, req, res, next);
-    }
-    next();
-  });
-}, async (req, res) => {
-  try {
-    const { message, version } = req.body;
-    const project = await Project.findById(req.params.id);
-
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
-    }
-
-    // Only the user who checked it out can check it in
-    if (!project.checkedOutBy || project.checkedOutBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only check in a project you have checked out'
-      });
-    }
-
-    // Validate version format if provided
-    if (version && !/^\d+\.\d+\.\d+$/.test(version)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Version must be in format X.Y.Z (e.g., 1.0.0)'
-      });
-    }
-
-    // Add uploaded files to project
-    if (req.files && req.files.length > 0) {
-      const newFiles = req.files.map(file => ({
-        name: file.originalname,
-        path: `/uploads/projects/${file.filename}`,
-        size: `${(file.size / 1024).toFixed(2)} KB`,
-        uploadedBy: req.user._id,
-        uploadedAt: new Date()
-      }));
-
-      project.files.push(...newFiles);
-    }
-
-    // Update project
-    project.checkedOutBy = null;
-    if (version) {
-      project.version = version;
-    }
-    await project.save();
-
-    // Create check-in activity
-    const activityDetails = [];
-    if (req.files && req.files.length > 0) {
-      activityDetails.push(`Added ${req.files.length} file(s)`);
-    }
-    if (version) {
-      activityDetails.push(`Updated version to ${version}`);
-    }
-
-    await Activity.create({
-      user: req.user._id,
-      action: 'checked_in',
-      project: project._id,
-      message: message || 'Checked in project',
-      details: activityDetails.join(', ')
-    });
-
-    await project.populate('creator', 'username email');
-    await project.populate('collaborators', 'username email');
-    await project.populate('checkedOutBy', 'username');
-
-    res.json({
-      success: true,
-      message: 'Project checked in successfully',
+      message: 'Ownership transferred successfully',
       project
     });
 
   } catch (error) {
-    console.error('Check-in project error:', error);
+    console.error('Transfer ownership error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error checking in project'
-    });
-  }
-});
-//--------------------------------------------------------------
-
-// _____________________________________________________________
-// Download Project File
-// GET /api/projects/:id/files/:fileName
-// _____________________________________________________________
-router.get('/:id/files/:fileName', auth, async (req, res) => {
-  try {
-    const project = await Project.findById(req.params.id);
-
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
-    }
-
-    // Find file
-    const file = project.files.find(f => f.name === req.params.fileName);
-    
-    if (!file) {
-      return res.status(404).json({
-        success: false,
-        message: 'File not found'
-      });
-    }
-
-    // Get file path
-    const filePath = path.join(__dirname, '..', file.path);
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
-        success: false,
-        message: 'File not found on server'
-      });
-    }
-
-    // Create activity for download
-    await Activity.create({
-      user: req.user._id,
-      action: 'downloaded',
-      project: project._id,
-      fileName: file.name,
-      details: `Downloaded ${file.name}`
-    });
-
-    // Send file for download
-    res.download(filePath, file.name, (err) => {
-      if (err) {
-        console.error('Download error:', err);
-        if (!res.headersSent) {
-          res.status(500).json({
-            success: false,
-            message: 'Error downloading file'
-          });
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Download file error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error downloading file'
+      message: 'Server error transferring ownership'
     });
   }
 });

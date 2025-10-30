@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import ProjectPreview from '../components/ProjectPreview';
 import CreateProject from '../components/CreateProject';
 import EditProfile from '../components/EditProfile';
+import UserLink from '../components/UserLink';
 import { userAPI, activityAPI, projectAPI, apiUtils } from '../services/api';
 import FriendsModal from '../components/FriendsModal';
 import FriendRequests from '../components/FriendRequests';
@@ -219,51 +220,6 @@ function ProfilePage() {
 
   const isFriend = profile?.friends?.some(friend => friend._id === currentUserId);
   const isLimitedProfile = profile && !isOwnProfile && !isFriend;
-
-  if (isLoading) {
-    return (
-      <div>
-        <Header />
-        <main className="page-container">
-          <div style={{textAlign: 'center', padding: '40px', color: '#b0b0b0'}}>
-            Loading profile...
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div>
-        <Header />
-        <main className="page-container">
-          <div style={{textAlign: 'center', padding: '40px', color: '#ff6b6b'}}>
-            <p>Error: {error}</p>
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => window.location.reload()}
-            >
-              Try Again
-            </button>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div>
-        <Header />
-        <main className="page-container">
-          <div style={{textAlign: 'center', padding: '40px', color: '#ff6b6b'}}>
-            User not found
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   // _____________________________________________________________
   // RENDER: Limited Profile (Non-Friends)
@@ -532,7 +488,7 @@ function ProfilePage() {
                   ) : (
                     userActivities.map((activity, index) => (
                       <div key={activity._id || index} className="activity-item">
-                        <span className="activity-user">{activity.user?.username}</span>
+                        <UserLink user={activity.user} className="activity-user" />
                         {' '}
                         <span className={`activity-action ${activity.action}`}>
                           {activity.action.replace('_', ' ')}
