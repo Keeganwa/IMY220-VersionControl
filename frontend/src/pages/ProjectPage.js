@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
-import { projectAPI, activityAPI, apiUtils } from '../services/api';
+import { projectAPI, activityAPI, apiUtils, userAPI } from '../services/api';
 import DiscussionBoard from '../components/DiscussionBoard';
 import UserLink from '../components/UserLink';
+import EditProject from '../components/EditProject';
 
 function ProjectPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  const [showRelinquishModal, setShowRelinquishModal] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [selectedNewOwner, setSelectedNewOwner] = useState('');
   const [project, setProject] = useState(null);
   const [projectActivities, setProjectActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [errors, setErrors] = useState({});
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showCheckinForm, setShowCheckinForm] = useState(false);
   const [checkinData, setCheckinData] = useState({
@@ -22,6 +29,9 @@ function ProjectPage() {
     version: ''
   });
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [showAddCollaboratorModal, setShowAddCollaboratorModal] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [selectedCollaborator, setSelectedCollaborator] = useState('');
 
   const currentUserId = localStorage.getItem('userId');
 
@@ -57,6 +67,56 @@ function ProjectPage() {
     fetchProjectData();
   }, [id, navigate]);
 
+  const canUserEdit = () => {
+    if (!project || !currentUserId) return false;
+    if (!project.creator) return false;
+
+    const creatorId = typeof project.creator === 'object' ? project.creator._id : project.creator;
+
+    return creatorId === currentUserId ||
+      project.collaborators?.some(collab => {
+        const collabId = typeof collab === 'object' ? collab._id : collab;
+        return collabId === currentUserId;
+      });
+  };
+
+  const isProjectOwner = () => {
+    if (!project || !currentUserId) return false;
+    if (!project.creator) return false;
+
+    const creatorId = typeof project.creator === 'object' ? project.creator._id : project.creator;
+    return creatorId === currentUserId;
+  };
+
+  const isCheckedOutByCurrentUser = () => {
+    if (!project || !currentUserId) return false;
+    if (!project.checkedOutBy) return false;
+
+    const checkedOutById = typeof project.checkedOutBy === 'object'
+      ? project.checkedOutBy._id
+      : project.checkedOutBy;
+
+    return checkedOutById === currentUserId;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit'
+      }) + ' - ' + date.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch {
+      return 'Invalid date';
+    }
+  };
+
   const handleTagClick = (tag) => {
     navigate(`/home?search=${encodeURIComponent(tag)}`);
   };
@@ -72,6 +132,26 @@ function ProjectPage() {
     }
 
     setSelectedFiles(files);
+  };
+
+  const handleDeleteProject = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      alert('You must type "DELETE" exactly to confirm.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await projectAPI.deleteProject(id);
+      if (response.success) {
+        alert('Project deleted successfully!');
+        navigate('/home');
+      }
+    } catch (error) {
+      alert('Failed to delete project: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleTransferOwnership = async () => {
@@ -112,10 +192,6 @@ function ProjectPage() {
     }
   };
 
-  const isProjectOwner = () => {
-    return project?.creator?._id === currentUserId;
-  };
-
   const handleCheckout = async () => {
     setIsCheckingOut(true);
 
@@ -127,9 +203,8 @@ function ProjectPage() {
         setProject(projectResponse.project);
       }
 
-      alert('Project checked out successfully! You can now download all files, edit them locally, and check them back in.');
-      
-      // Automatically trigger download all files
+      alert('Project checked out successfully! You can now download files, edit them, and check them back in.');
+
       handleDownloadAllFiles();
 
     } catch (error) {
@@ -148,11 +223,6 @@ function ProjectPage() {
       return;
     }
 
-    if (selectedFiles.length === 0) {
-      alert('Please upload at least one file to check in');
-      return;
-    }
-
     try {
       const formData = new FormData();
       formData.append('message', checkinData.message);
@@ -161,9 +231,11 @@ function ProjectPage() {
         formData.append('version', checkinData.version);
       }
 
-      selectedFiles.forEach(file => {
-        formData.append('files', file);
-      });
+      if (selectedFiles.length > 0) {
+        selectedFiles.forEach(file => {
+          formData.append('files', file);
+        });
+      }
 
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:5000/api/projects/${id}/checkin`, {
@@ -190,7 +262,12 @@ function ProjectPage() {
         setShowCheckinForm(false);
         setCheckinData({ message: '', files: [], version: '' });
         setSelectedFiles([]);
-        alert('Project checked in successfully! All files have been replaced with your uploaded files.');
+
+        if (selectedFiles.length > 0) {
+          alert('Project checked in successfully! All files have been replaced with your uploaded files.');
+        } else {
+          alert('Project checked in successfully! No files were changed.');
+        }
       } else {
         throw new Error(data.message);
       }
@@ -233,6 +310,20 @@ function ProjectPage() {
     }
   };
 
+  const handleRelinquishOwnership = async () => {
+    try {
+      const response = await projectAPI.relinquishOwnership(id);
+
+      if (response.success) {
+        alert('You have left the project. Ownership has been transferred to the first collaborator.');
+        navigate('/home');
+      }
+    } catch (error) {
+      console.error('Relinquish ownership error:', error);
+      alert('Failed to leave project: ' + error.message);
+    }
+  };
+
   const handleDownloadFile = async (fileName) => {
     try {
       const downloadUrl = `http://localhost:5000/api/projects/${id}/files/${encodeURIComponent(fileName)}`;
@@ -266,32 +357,78 @@ function ProjectPage() {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Unknown';
+ 
+  const fetchAvailableUsers = async () => {
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit'
-      }) + ' - ' + date.toLocaleTimeString('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-    } catch {
-      return 'Invalid date';
+      const currentUserProfile = await userAPI.getUserById(currentUserId);
+      
+      if (currentUserProfile.success && currentUserProfile.user.friends) {
+        const availableFriends = currentUserProfile.user.friends.filter(friend => 
+          !project.collaborators.some(collab => 
+            (typeof collab === 'object' ? collab._id : collab) === friend._id
+          )
+        );
+        
+        setAvailableUsers(availableFriends);
+      } else {
+        setAvailableUsers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+      setAvailableUsers([]);
     }
   };
 
-  const canUserEdit = () => {
-    if (!project || !currentUserId) return false;
-    return project.creator._id === currentUserId ||
-      project.collaborators.some(collab => collab._id === currentUserId);
+  const handleAddCollaborator = async () => {
+    if (!selectedCollaborator) {
+      alert('Please select a friend to add');
+      return;
+    }
+
+    try {
+      const response = await projectAPI.addCollaborator(project._id, selectedCollaborator);
+      
+      if (response.success) {
+        alert('Friend added as collaborator successfully!');
+        setShowAddCollaboratorModal(false);
+        setSelectedCollaborator('');
+        
+        const projectResponse = await projectAPI.getProjectById(id);
+        if (projectResponse.success) {
+          setProject(projectResponse.project);
+        }
+
+        const activitiesResponse = await activityAPI.getProjectActivities(id, 20);
+        if (activitiesResponse.success) {
+          setProjectActivities(activitiesResponse.activities);
+        }
+      }
+    } catch (error) {
+      console.error('Add collaborator error:', error);
+      alert('Failed to add collaborator: ' + error.message);
+    }
   };
 
-  const isCheckedOutByCurrentUser = () => {
-    return project?.checkedOutBy?._id === currentUserId;
+  const handleRemoveCollaborator = async (collaboratorId) => {
+    if (!window.confirm('Are you sure you want to remove this collaborator?')) {
+      return;
+    }
+
+    try {
+      const response = await projectAPI.removeCollaborator(project._id, collaboratorId);
+      
+      if (response.success) {
+        alert('Collaborator removed successfully!');
+        
+        const projectResponse = await projectAPI.getProjectById(id);
+        if (projectResponse.success) {
+          setProject(projectResponse.project);
+        }
+      }
+    } catch (error) {
+      console.error('Remove collaborator error:', error);
+      alert('Failed to remove collaborator: ' + error.message);
+    }
   };
 
   if (isLoading) {
@@ -348,21 +485,67 @@ function ProjectPage() {
             <div className="project-info-card">
               <div className="project-header-info">
                 <h1>{project.name}</h1>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {canUserEdit() && (
-                    <button className="btn btn-secondary">Edit Project</button>
-                  )}
-                  {isProjectOwner() && project.collaborators && project.collaborators.length > 0 && (
                     <button
-                      className="btn btn-primary"
-                      onClick={() => setShowTransferModal(true)}
-                      style={{
-                        backgroundColor: '#ffa94d',
-                        borderColor: '#ffa94d'
-                      }}
+                      className="btn btn-secondary"
+                      onClick={() => setShowEditForm(true)}
                     >
-                      Transfer Ownership
+                      Edit Project
                     </button>
+                  )}
+
+                  {isProjectOwner() && (
+                    <>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          fetchAvailableUsers();
+                          setShowAddCollaboratorModal(true);
+                        }}
+                        style={{
+                          backgroundColor: '#51cf66',
+                          borderColor: '#51cf66'
+                        }}
+                      >
+                        Add Collaborator
+                      </button>
+
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => setShowDeleteModal(true)}
+                        style={{
+                          backgroundColor: '#ff4444',
+                          borderColor: '#ff4444'
+                        }}
+                      >
+                        Delete Project
+                      </button>
+
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => setShowRelinquishModal(true)}
+                        style={{
+                          backgroundColor: '#ff9800',
+                          borderColor: '#ff9800'
+                        }}
+                      >
+                        Leave Project
+                      </button>
+
+                      {project.collaborators && project.collaborators.length > 0 && (
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => setShowTransferModal(true)}
+                          style={{
+                            backgroundColor: '#ffa94d',
+                            borderColor: '#ffa94d'
+                          }}
+                        >
+                          Transfer Ownership
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -406,8 +589,25 @@ function ProjectPage() {
                 <div className="project-meta">
                   <span>Collaborators: </span>
                   {project.collaborators.map((collab, index) => (
-                    <span key={collab._id}>
+                    <span key={collab._id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                       <UserLink user={collab} style={{ fontWeight: 'bold' }} />
+                      {isProjectOwner() && (
+                        <button
+                          onClick={() => handleRemoveCollaborator(collab._id)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ff6b6b',
+                            cursor: 'pointer',
+                            fontSize: '18px',
+                            padding: '0 5px',
+                            lineHeight: '1'
+                          }}
+                          title="Remove collaborator"
+                        >
+                          x
+                        </button>
+                      )}
                       {index < project.collaborators.length - 1 ? ', ' : ''}
                     </span>
                   ))}
@@ -490,21 +690,30 @@ function ProjectPage() {
               )}
             </div>
 
+            {showEditForm && (
+              <EditProject
+                project={project}
+                onClose={() => setShowEditForm(false)}
+                onSave={async (updatedProject) => {
+                  setProject(updatedProject);
+                  setShowEditForm(false);
+
+                  try {
+                    const projectResponse = await projectAPI.getProjectById(id);
+                    if (projectResponse.success) {
+                      setProject(projectResponse.project);
+                    }
+                  } catch (error) {
+                    console.error('Error refreshing project:', error);
+                  }
+                }}
+              />
+            )}
+
             {showCheckinForm && (
               <div className="project-info-card">
                 <h3 style={{ color: '#d4ff00', marginBottom: '20px' }}>Check In Changes</h3>
-                <div style={{ 
-                  backgroundColor: '#1f1f1f', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  marginBottom: '20px',
-                  borderLeft: '4px solid #d4ff00'
-                }}>
-                  <p style={{ color: '#b0b0b0', fontSize: '14px', lineHeight: '1.6', margin: 0 }}>
-                    <strong style={{ color: '#d4ff00' }}>Important:</strong> When you check in, ALL current project files will be REPLACED with the files you upload. 
-                    Make sure you upload your complete edited project.
-                  </p>
-                </div>
+
                 <form onSubmit={handleCheckinSubmit}>
                   <div className="form-group">
                     <label htmlFor="checkinMessage">Check-in Message *</label>
@@ -519,10 +728,13 @@ function ProjectPage() {
                       required
                       style={{ minHeight: '100px' }}
                     />
+                    <small style={{ color: '#888', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                      Briefly describe what you changed or updated
+                    </small>
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="newVersion">New Version *</label>
+                    <label htmlFor="newVersion">New Version</label>
                     <input
                       type="text"
                       id="newVersion"
@@ -534,17 +746,16 @@ function ProjectPage() {
                       placeholder="1.0.1"
                     />
                     <small style={{ color: '#888', fontSize: '12px', display: 'block', marginTop: '5px' }}>
-                      Current version: {project.version} • Format: Major.Minor.Patch
+                      Current version: {project.version} • Format: Major.Minor.Patch (e.g., 1.0.1)
                     </small>
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="checkinFiles">Upload Project Files (Required - Will replace all current files) *</label>
+                    <label htmlFor="checkinFiles">Upload Updated Project Files (Optional)</label>
                     <input
                       type="file"
                       id="checkinFiles"
                       multiple
-                      required
                       onChange={handleFileChange}
                       style={{
                         width: '100%',
@@ -556,10 +767,10 @@ function ProjectPage() {
                         fontSize: '14px'
                       }}
                     />
-                    {selectedFiles.length > 0 && (
+                    {selectedFiles.length > 0 ? (
                       <div style={{ marginTop: '10px' }}>
-                        <small style={{ color: '#888' }}>
-                          {selectedFiles.length} file(s) selected (these will replace all current project files):
+                        <small style={{ color: '#d4ff00', display: 'block', marginBottom: '5px' }}>
+                          ✓ {selectedFiles.length} file(s) selected - These will REPLACE all current files:
                         </small>
                         <ul style={{ color: '#b0b0b0', fontSize: '13px', marginTop: '5px', paddingLeft: '20px' }}>
                           {selectedFiles.map((file, index) => (
@@ -567,12 +778,35 @@ function ProjectPage() {
                           ))}
                         </ul>
                       </div>
+                    ) : (
+                      <div style={{
+                        marginTop: '10px',
+                        padding: '12px',
+                        backgroundColor: '#1f1f1f',
+                        borderRadius: '6px',
+                        borderLeft: '3px solid #ffa94d'
+                      }}>
+                        <small style={{ color: '#b0b0b0', fontSize: '12px', display: 'block' }}>
+                          <strong style={{ color: '#ffa94d' }}>No files selected:</strong> Project files will remain unchanged.
+                          Only version and message will be updated.
+                        </small>
+                      </div>
                     )}
                   </div>
 
+                  {errors.submit && (
+                    <div className="error-message" style={{ marginBottom: '15px' }}>
+                      {errors.submit}
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <button type="submit" className="btn btn-secondary">
-                      Check In Project
+                    <button
+                      type="submit"
+                      className="btn btn-secondary"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Checking In...' : 'Check In Project'}
                     </button>
                     <button
                       type="button"
@@ -580,7 +814,9 @@ function ProjectPage() {
                       onClick={() => {
                         setShowCheckinForm(false);
                         setSelectedFiles([]);
+                        setCheckinData({ message: '', files: [], version: '' });
                       }}
+                      disabled={isLoading}
                     >
                       Cancel
                     </button>
@@ -592,7 +828,7 @@ function ProjectPage() {
             <div className="project-info-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h3 style={{ color: '#d4ff00' }}>Files ({project.files?.length || 0})</h3>
-                
+
                 {project.files && project.files.length > 0 && (
                   <button
                     className="btn btn-secondary"
@@ -674,6 +910,110 @@ function ProjectPage() {
           <DiscussionBoard projectId={id} />
         </div>
 
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: '#1a1a1a',
+              padding: '30px',
+              borderRadius: '12px',
+              border: '2px solid #ff4444',
+              maxWidth: '500px',
+              width: '90%'
+            }}>
+              <h2 style={{ color: '#ff4444', marginBottom: '20px' }}>
+                 Delete Project
+              </h2>
+
+              <p style={{ color: '#b0b0b0', marginBottom: '20px', lineHeight: '1.6' }}>
+                You are about to permanently delete <strong style={{ color: '#d4ff00' }}>"{project.name}"</strong>.
+              </p>
+
+              <div style={{
+                backgroundColor: '#2a2a2a',
+                padding: '15px',
+                borderRadius: '8px',
+                marginBottom: '20px',
+                borderLeft: '4px solid #ff4444'
+              }}>
+                <p style={{ color: '#ff6b6b', margin: 0, fontSize: '14px', lineHeight: '1.6' }}>
+                  This will permanently delete:
+                </p>
+                <ul style={{ color: '#ff6b6b', fontSize: '14px', marginTop: '10px', paddingLeft: '20px' }}>
+                  <li>All project files</li>
+                  <li>All project activity history</li>
+                  <li>All discussions</li>
+                  <li>The project itself</li>
+                </ul>
+                <p style={{ color: '#ff4444', fontWeight: 'bold', marginTop: '10px', marginBottom: 0 }}>
+                  This action CANNOT be undone!
+                </p>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="deleteConfirm">
+                  Type <strong style={{ color: '#ff4444' }}>DELETE</strong> to confirm:
+                </label>
+                <input
+                  type="text"
+                  id="deleteConfirm"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Type DELETE"
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    backgroundColor: '#1f1f1f',
+                    border: '2px solid #333',
+                    borderRadius: '8px',
+                    color: '#e0e0e0',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleDeleteProject}
+                  disabled={deleteConfirmText !== 'DELETE' || isLoading}
+                  style={{
+                    flex: 1,
+                    backgroundColor: deleteConfirmText === 'DELETE' ? '#ff4444' : '#666',
+                    borderColor: deleteConfirmText === 'DELETE' ? '#ff4444' : '#666',
+                    cursor: deleteConfirmText === 'DELETE' ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  {isLoading ? 'Deleting...' : 'Delete Forever'}
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteConfirmText('');
+                  }}
+                  disabled={isLoading}
+                  style={{ flex: 1 }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      
         {showTransferModal && (
           <div style={{
             position: 'fixed',
@@ -742,6 +1082,187 @@ function ProjectPage() {
                   onClick={() => {
                     setShowTransferModal(false);
                     setSelectedNewOwner('');
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+     
+        {showRelinquishModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: '#1a1a1a',
+              padding: '30px',
+              borderRadius: '12px',
+              border: '2px solid #ff9800',
+              maxWidth: '500px',
+              width: '90%'
+            }}>
+              <h2 style={{ color: '#ff9800', marginBottom: '20px' }}>
+                Leave Project
+              </h2>
+
+              <p style={{ color: '#b0b0b0', marginBottom: '20px', lineHeight: '1.6' }}>
+                You are about to leave <strong style={{ color: '#d4ff00' }}>"{project.name}"</strong>
+                and give up ownership.
+              </p>
+
+              <div style={{
+                backgroundColor: '#2a2a2a',
+                padding: '15px',
+                borderRadius: '8px',
+                marginBottom: '20px',
+                borderLeft: '4px solid #ff9800'
+              }}>
+                <p style={{ color: '#ffb74d', fontSize: '14px', lineHeight: '1.6', marginBottom: '10px' }}>
+                  What will happen:
+                </p>
+                <ul style={{ color: '#ffb74d', fontSize: '14px', paddingLeft: '20px', marginBottom: '10px' }}>
+                  <li>Ownership will be transferred to: <strong>{project.collaborators[0]?.username}</strong></li>
+                  <li>You will be removed from the project completely</li>
+                  <li>You will lose all access to this project</li>
+                  <li>This action cannot be undone</li>
+                </ul>
+              </div>
+
+              <p style={{ color: '#888', fontSize: '13px', fontStyle: 'italic', marginBottom: '20px' }}>
+                If you want to stay as a collaborator, use "Transfer Ownership" instead.
+              </p>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleRelinquishOwnership}
+                  disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#ff9800',
+                    borderColor: '#ff9800'
+                  }}
+                >
+                  {isLoading ? 'Leaving...' : 'Leave Project'}
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setShowRelinquishModal(false)}
+                  disabled={isLoading}
+                  style={{ flex: 1 }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+       
+        {showAddCollaboratorModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: '#1a1a1a',
+              padding: '30px',
+              borderRadius: '12px',
+              border: '2px solid #51cf66',
+              maxWidth: '500px',
+              width: '90%'
+            }}>
+              <h2 style={{ color: '#51cf66', marginBottom: '20px' }}>
+                Add Friend as Collaborator
+              </h2>
+
+              <p style={{ color: '#b0b0b0', marginBottom: '20px' }}>
+                Select a friend to add as a collaborator to this project.
+              </p>
+
+              <div className="form-group">
+                <label htmlFor="collaborator">Select Friend</label>
+                <select
+                  id="collaborator"
+                  value={selectedCollaborator}
+                  onChange={(e) => setSelectedCollaborator(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    backgroundColor: '#1f1f1f',
+                    border: '2px solid #333',
+                    borderRadius: '8px',
+                    color: '#e0e0e0',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">-- Select a friend --</option>
+                  {availableUsers.map((friend) => (
+                    <option key={friend._id} value={friend._id}>
+                      {friend.username} ({friend.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {availableUsers.length === 0 && (
+                <div style={{
+                  marginTop: '15px',
+                  padding: '12px',
+                  backgroundColor: '#2a2a2a',
+                  borderRadius: '6px',
+                  borderLeft: '3px solid #ffa94d'
+                }}>
+                  <p style={{ color: '#ffa94d', fontSize: '14px', margin: 0 }}>
+                    <strong>No friends available to add.</strong>
+                  </p>
+                  <p style={{ color: '#888', fontSize: '13px', marginTop: '5px', marginBottom: 0 }}>
+                    All your friends are already collaborators, or you have no friends yet. 
+                    Add friends first to collaborate with them!
+                  </p>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleAddCollaborator}
+                  disabled={!selectedCollaborator}
+                  style={{ 
+                    flex: 1,
+                    backgroundColor: selectedCollaborator ? '#51cf66' : '#666',
+                    borderColor: selectedCollaborator ? '#51cf66' : '#666',
+                    cursor: selectedCollaborator ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  Add Collaborator
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setShowAddCollaboratorModal(false);
+                    setSelectedCollaborator('');
                   }}
                   style={{ flex: 1 }}
                 >

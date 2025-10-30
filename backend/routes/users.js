@@ -1,17 +1,25 @@
-
-
-// _____________________________________________________________
-// User Manage 
-// _____________________________________________________________
-
 const express = require('express');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const Project = require('../models/Project');  
 const Activity = require('../models/Activity'); 
 const Discussion = require('../models/Discussion');
+
+// _____________________________________________________________
+// Setup Profile Image Upload Directory
+// _____________________________________________________________
+const uploadDir = path.join(__dirname, '../uploads');
+const profileImagesDir = path.join(uploadDir, 'profiles');
+
+if (!fs.existsSync(profileImagesDir)) {
+  fs.mkdirSync(profileImagesDir, { recursive: true });
+}
+
 // _____________________________________________________________
 //  Get All Users Endpoint
 // GET /api/users 
@@ -21,7 +29,7 @@ router.get('/', auth, async (req, res) => {
     const { search } = req.query;
     let query = {};
 
-    // search ter
+    // search term
     if (search) {
       query = {
         $or: [
@@ -33,7 +41,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     const users = await User.find(query)
-      .select('username email occupation dateOfBirth createdAt')
+      .select('username email occupation dateOfBirth profileImage createdAt')
       .limit(50);
 
     res.json({
@@ -51,7 +59,39 @@ router.get('/', auth, async (req, res) => {
 });
 //--------------------------------------------------------------
 
+// _____________________________________________________________
+// Get Current User Profile
+// GET /api/users/profile
+// _____________________________________________________________
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .select('-password')
+      .populate('friends', 'username email profileImage')
+      .populate('friendRequests', 'username email profileImage')
+      .populate('ownedProjects')
+      .populate('sharedProjects');
 
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      user
+    });
+
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching profile'
+    });
+  }
+});
 
 // _____________________________________________________________
 // Single User Profile
@@ -60,22 +100,22 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
-      .populate('friends', 'username email')
-      .populate('friendRequests', 'username email')
+      .populate('friends', 'username email profileImage')
+      .populate('friendRequests', 'username email profileImage')
       .populate({
         path: 'ownedProjects',
         populate: [
-          { path: 'creator', select: 'username' },
-          { path: 'collaborators', select: 'username' },
-          { path: 'checkedOutBy', select: 'username' }
+          { path: 'creator', select: 'username profileImage' },
+          { path: 'collaborators', select: 'username profileImage' },
+          { path: 'checkedOutBy', select: 'username profileImage' }
         ]
       })
       .populate({
         path: 'sharedProjects',
         populate: [
-          { path: 'creator', select: 'username' },
-          { path: 'collaborators', select: 'username' },
-          { path: 'checkedOutBy', select: 'username' }
+          { path: 'creator', select: 'username profileImage' },
+          { path: 'collaborators', select: 'username profileImage' },
+          { path: 'checkedOutBy', select: 'username profileImage' }
         ]
       });
 
@@ -102,6 +142,7 @@ router.get('/:id', auth, async (req, res) => {
           _id: user._id,
           username: user.username,
           email: user.email, // Just for friend request purposes
+          profileImage: user.profileImage,
           isFriend: false,
           isOwnProfile: false
         },
@@ -116,6 +157,8 @@ router.get('/:id', auth, async (req, res) => {
         _id: user._id,
         username: user.username,
         email: user.email,
+        profileImage: user.profileImage,
+        bio: user.bio,
         dateOfBirth: user.dateOfBirth,
         occupation: user.occupation,
         friends: user.friends,
@@ -140,18 +183,59 @@ router.get('/:id', auth, async (req, res) => {
 });
 //--------------------------------------------------------------
 
-
-
-
 // _____________________________________________________________
-// Update Profile
+// Update Profile (with Image Upload)
 // PUT /api/users/profile 
 // _____________________________________________________________
-router.put('/profile', auth, async (req, res) => {
+router.put('/profile', auth, (req, res, next) => {
+  // Setup multer for profile image upload
+  const upload = multer({
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => {
+        cb(null, profileImagesDir);
+      },
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + '-' + file.originalname);
+      }
+    }),
+    limits: {
+      fileSize: 5 * 1024 * 1024 // 5MB
+    },
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = /jpeg|jpg|png|gif|webp/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      const mimetype = allowedTypes.test(file.mimetype);
+      if (mimetype && extname) {
+        return cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed'));
+      }
+    }
+  }).single('profileImage');
+
+  upload(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            success: false,
+            message: 'File size too large. Maximum size is 5MB.'
+          });
+        }
+      }
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'File upload error'
+      });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
-    const { username, email, occupation, dateOfBirth } = req.body;
+    const { username, email, occupation, dateOfBirth, bio } = req.body;
     
-    // Check if taken 
+    // Check if username/email taken by another user
     const existingUser = await User.findOne({
       $and: [
         { _id: { $ne: req.user._id } }, // Not current user
@@ -162,19 +246,53 @@ router.put('/profile', auth, async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'Username or email alredy taken by another user'
+        message: 'Username or email already taken by another user'
       });
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user._id,
-      { username, email, occupation, dateOfBirth },
-      { new: true, runValidators: true }
-    ).select('-password');
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Update fields
+    if (username) user.username = username;
+    if (email) user.email = email;
+    if (occupation) user.occupation = occupation;
+    if (dateOfBirth) user.dateOfBirth = dateOfBirth;
+    if (bio !== undefined) user.bio = bio;
+
+    // Handle profile image upload
+    if (req.file) {
+      // Delete old image if exists
+      if (user.profileImage) {
+        const oldImagePath = path.join(__dirname, '..', user.profileImage);
+        if (fs.existsSync(oldImagePath)) {
+          try {
+            fs.unlinkSync(oldImagePath);
+          } catch (err) {
+            console.error('Error deleting old profile image:', err);
+          }
+        }
+      }
+      // Set new image
+      user.profileImage = `/uploads/profiles/${req.file.filename}`;
+    }
+
+    await user.save();
+
+    const updatedUser = await User.findById(user._id)
+      .select('-password')
+      .populate('friends', 'username email profileImage')
+      .populate('friendRequests', 'username email profileImage');
 
     res.json({
       success: true,
-      message: 'Profile updated succesfully',
+      message: 'Profile updated successfully',
       user: updatedUser
     });
 
@@ -182,12 +300,11 @@ router.put('/profile', auth, async (req, res) => {
     console.error('Update profile error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error updating profil'
+      message: 'Server error updating profile'
     });
   }
 });
 //--------------------------------------------------------------
-
 
 // _____________________________________________________________
 // Friend Request
@@ -226,7 +343,7 @@ router.post('/:id/friend-request', auth, async (req, res) => {
     if (targetUser.friendRequests.includes(currentUserId)) {
       return res.status(400).json({
         success: false,
-        message: 'Friend request alredy sent'
+        message: 'Friend request already sent'
       });
     }
 
@@ -236,7 +353,7 @@ router.post('/:id/friend-request', auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Friend request sent succesfully'
+      message: 'Friend request sent successfully'
     });
 
   } catch (error) {
@@ -249,18 +366,16 @@ router.post('/:id/friend-request', auth, async (req, res) => {
 });
 //--------------------------------------------------------------
 
-
-
 // _____________________________________________________________
 // Accept Friend Request
-// POST /api/users/accept-friend/:id - 
+// POST /api/users/accept-friend/:id 
 // _____________________________________________________________
 router.post('/accept-friend/:id', auth, async (req, res) => {
   try {
     const friendId = req.params.id;
     const currentUser = await User.findById(req.user._id);
 
-    // if  request exists
+    // Check if request exists
     if (!currentUser.friendRequests.includes(friendId)) {
       return res.status(400).json({
         success: false,
@@ -276,12 +391,11 @@ router.post('/accept-friend/:id', auth, async (req, res) => {
       });
     }
 
-    // Add each other
+    // Add each other as friends
     currentUser.friends.push(friendId);
     friend.friends.push(currentUser._id);
 
-
-
+    // Remove friend request
     currentUser.friendRequests = currentUser.friendRequests.filter(
       id => id.toString() !== friendId
     );
@@ -291,7 +405,7 @@ router.post('/accept-friend/:id', auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Friend request accepted succesfully'
+      message: 'Friend request accepted successfully'
     });
 
   } catch (error) {
@@ -303,8 +417,6 @@ router.post('/accept-friend/:id', auth, async (req, res) => {
   }
 });
 //--------------------------------------------------------------
-
-
 
 // _____________________________________________________________
 //  Unfriend User 
@@ -344,7 +456,7 @@ router.delete('/unfriend/:id', auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Friend removed succesfully'
+      message: 'Friend removed successfully'
     });
 
   } catch (error) {
@@ -356,6 +468,10 @@ router.delete('/unfriend/:id', auth, async (req, res) => {
   }
 });
 
+// _____________________________________________________________
+// Delete Profile
+// DELETE /api/users/profile
+// _____________________________________________________________
 router.delete('/profile', auth, async (req, res) => {
   try {
     const userId = req.user._id;
@@ -367,6 +483,18 @@ router.delete('/profile', auth, async (req, res) => {
         success: false,
         message: 'User not found'
       });
+    }
+
+    // Delete profile image if exists
+    if (user.profileImage) {
+      const imagePath = path.join(__dirname, '..', user.profileImage);
+      if (fs.existsSync(imagePath)) {
+        try {
+          fs.unlinkSync(imagePath);
+        } catch (err) {
+          console.error('Error deleting profile image:', err);
+        }
+      }
     }
 
     // Delete user's projects
@@ -382,7 +510,6 @@ router.delete('/profile', auth, async (req, res) => {
     await Activity.deleteMany({ user: userId });
 
     // Delete user's discussions
-    
     await Discussion.deleteMany({ user: userId });
 
     // Remove from friends lists

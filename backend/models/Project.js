@@ -102,7 +102,7 @@ const projectSchema = new mongoose.Schema({
 
 // _____________________________________________________________
 //  Project Helper 
-// _____________________________________________________________
+// ____________________
 
 
 projectSchema.methods.hasAccess = function(userId) {

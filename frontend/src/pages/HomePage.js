@@ -61,24 +61,25 @@ function HomePage() {
 
     switch (sortBy) {
       case 'date':
-        // Already sorted by date from backend (newest first)
+       
+        sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         break;
       
-      case 'downloads':
-        // Sort by number of downloads (from project)
+      case 'project':
+      
         sorted.sort((a, b) => {
-          const aDownloads = a.project?.downloadCount || 0;
-          const bDownloads = b.project?.downloadCount || 0;
-          return bDownloads - aDownloads;
+          const aName = a.project?.name || '';
+          const bName = b.project?.name || '';
+          return aName.localeCompare(bName);
         });
         break;
       
-      case 'checkins':
-        // Sort by projects with most check-ins
+      case 'user':
+
         sorted.sort((a, b) => {
-          const aCheckins = a.project?.checkinCount || 0;
-          const bCheckins = b.project?.checkinCount || 0;
-          return bCheckins - aCheckins;
+          const aUser = a.user?.username || '';
+          const bUser = b.user?.username || '';
+          return aUser.localeCompare(bUser);
         });
         break;
       
@@ -89,9 +90,7 @@ function HomePage() {
     return sorted;
   };
 
-  // _____________________________________________________________
-  // Handle search from URL params (for hashtag clicks)
-  // _____________________________________________________________
+
   useEffect(() => {
     const searchTermFromUrl = searchParams.get('search');
     if (searchTermFromUrl) {
@@ -100,9 +99,6 @@ function HomePage() {
     }
   }, [searchParams]);
 
-  // _____________________________________________________________
-  // Enhanced Search Handler - Users, Projects, and Check-ins
-  // _____________________________________________________________
   const performSearch = async (term) => {
     if (!term.trim()) {
       setSearchResults({ users: [], projects: [], activities: [] });
@@ -113,10 +109,10 @@ function HomePage() {
       // Search users
       const userResponse = await userAPI.getUsers(term);
       
-      // Search projects (by tags/hashtags)
+      // Search projects 
       const projectResponse = await projectAPI.getProjects('global', term);
       
-      // Search activities (by check-in message)
+      // Search activities
       const activityResponse = await activityAPI.searchActivities(term);
 
       setSearchResults({
@@ -140,15 +136,14 @@ function HomePage() {
     const value = e.target.value;
     setSearchTerm(value);
     
-    // Clear results if search is empty
+    
     if (!value.trim()) {
       setSearchResults({ users: [], projects: [], activities: [] });
     }
   };
 
   // _____________________________________________________________
-  // Handle Tag Click in Activity Feed
-  // _____________________________________________________________
+
   const handleTagClick = (tag, e) => {
     e.stopPropagation();
     navigate(`/home?search=${encodeURIComponent(tag)}`);
@@ -175,7 +170,7 @@ function HomePage() {
     }
   };
 
-  // Don't render page if user is not authenticated
+
   if (!apiUtils.isAuthenticated()) {
     return (
       <div style={{
@@ -237,7 +232,7 @@ function HomePage() {
               Search Results for "{searchTerm}"
             </h2>
             
-            {/* User Results */}
+           
             {searchResults.users.length > 0 && (
               <div style={{marginBottom: '30px'}}>
                 <h3 style={{color: '#b0b0b0', fontSize: '18px', marginBottom: '15px'}}>
@@ -275,7 +270,7 @@ function HomePage() {
               </div>
             )}
 
-            {/* Project Results */}
+         
             {searchResults.projects.length > 0 && (
               <div style={{marginBottom: '30px'}}>
                 <h3 style={{color: '#b0b0b0', fontSize: '18px', marginBottom: '15px'}}>
@@ -289,7 +284,10 @@ function HomePage() {
               </div>
             )}
 
-            {/* Check-in/Activity Results */}
+            
+
+
+
             {searchResults.activities.length > 0 && (
               <div style={{marginBottom: '30px'}}>
                 <h3 style={{color: '#b0b0b0', fontSize: '18px', marginBottom: '15px'}}>
@@ -376,10 +374,10 @@ function HomePage() {
           </div>
         )}
 
-        {/* Activity Feed (shown when no search or no results) */}
+        {/* Activity Feed  */}
         {!hasSearchResults && (
           <div>
-            {/* Feed Controls */}
+            {/* Feed  */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -388,7 +386,7 @@ function HomePage() {
               gap: '15px',
               flexWrap: 'wrap'
             }}>
-              {/* Feed Type Toggle */}
+              
               <div style={{display: 'flex', gap: '10px'}}>
                 <button
                   className={`btn ${feedType === 'local' ? 'btn-secondary' : 'btn-primary'}`}
@@ -404,7 +402,7 @@ function HomePage() {
                 </button>
               </div>
 
-              {/* Sort Dropdown */}
+              {/* Sort  */}
               <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
                 <label htmlFor="sortBy" style={{color: '#b0b0b0', fontSize: '14px'}}>
                   Sort by:
@@ -424,13 +422,13 @@ function HomePage() {
                   }}
                 >
                   <option value="date">Latest Activity</option>
-                  <option value="downloads">Most Downloaded</option>
-                  <option value="checkins">Most Check-ins</option>
+                  <option value="project">Project Name (A-Z)</option>
+                  <option value="user">Username (A-Z)</option>
                 </select>
               </div>
             </div>
 
-            {/* Activity Feed */}
+            {/*  Feed */}
             <div className="activity-feed">
               <h3 style={{marginBottom: '20px'}}>
                 {feedType === 'local' ? 'Your Friends Activity' : 'Global Activity'}
@@ -467,7 +465,10 @@ function HomePage() {
                     }}
                   >
                     <div style={{display: 'flex', alignItems: 'flex-start', gap: '15px'}}>
-                      {/* Project Image */}
+                     
+
+
+
                       {activity.project?.image && (
                         <img 
                           src={`http://localhost:5000${activity.project.image}`}
@@ -499,7 +500,7 @@ function HomePage() {
                           )}
                         </div>
 
-                        {/* Activity Message */}
+                     
                         {activity.message && (
                           <div style={{
                             color: '#b0b0b0',
@@ -515,7 +516,7 @@ function HomePage() {
                           </div>
                         )}
 
-                        {/* Clickable Hashtags */}
+                     
                         {activity.project?.tags && activity.project.tags.length > 0 && (
                           <div style={{marginBottom: '8px'}}>
                             {activity.project.tags.map((tag, tagIndex) => (

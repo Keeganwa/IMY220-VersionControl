@@ -1,0 +1,1 @@
+[ 'discussions', 'activities', 'projects', 'users' ]

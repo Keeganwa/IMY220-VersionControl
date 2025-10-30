@@ -9,7 +9,6 @@ function SearchInput({ onSearch, searchType = 'projects' }) {
 
   // _____________________________________________________________
   //   Search 
-  // Connects to backend 
   // _____________________________________________________________
   const performSearch = async (term) => {
     if (!term.trim()) {
@@ -24,18 +23,18 @@ function SearchInput({ onSearch, searchType = 'projects' }) {
       let response;
       
       if (searchType === 'projects') {
-        // Search projects by name, description, or tags
+        //  name, description, or tags
         response = await projectAPI.getProjects('global', term);
         setSearchResults(response.projects || []);
       } else if (searchType === 'users') {
-        // Search users by username, email, or ocupation
+        // username, email, or ocupation
         response = await userAPI.getUsers(term);
         setSearchResults(response.users || []);
       }
       
       setShowResults(true);
       
-      // Call parent callback if provided
+      //callback 
       if (onSearch) {
         onSearch(term, response);
       }
@@ -58,7 +57,9 @@ function SearchInput({ onSearch, searchType = 'projects' }) {
     const value = e.target.value;
     setSearchTerm(value);
     
-    // Debounce search - wait 500ms after user stops typing
+    
+
+
     clearTimeout(window.searchTimeout);
     window.searchTimeout = setTimeout(() => {
       if (value.length >= 2) {
@@ -72,10 +73,10 @@ function SearchInput({ onSearch, searchType = 'projects' }) {
 
   const handleResultClick = (result) => {
     if (searchType === 'projects') {
-      // Navigate to project page
+      
       window.location.href = `/project/${result._id}`;
     } else if (searchType === 'users') {
-      // Navigate to user profile
+     
       window.location.href = `/profile/${result._id}`;
     }
     setShowResults(false);
@@ -101,7 +102,10 @@ function SearchInput({ onSearch, searchType = 'projects' }) {
         />
       </form>
       
-      {/* Search Results Dropdown */}
+   
+
+
+   
       {showResults && (
         <div style={{
           position: 'absolute',

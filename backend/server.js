@@ -1,5 +1,5 @@
 // _____________________________________________________________
-// Main Server
+//  Server
 // _________________________________________________________
 
 const express = require('express');
@@ -13,14 +13,14 @@ const projectRoutes = require('./routes/projects');
 const activityRoutes = require('./routes/activities');
 const discussionRoutes = require('./routes/discussions');
 const adminRoutes = require('./routes/admin');
-// Load .env 
+ 
 dotenv.config();
 
 // Init
 const app = express();
 connectDB();
 
-// Set up CORS, JSON parsing, and request logging(Help Ertror)
+
 
 
 app.use(cors({
@@ -53,6 +53,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/discussions', discussionRoutes);
 app.use('/api/admin', adminRoutes);
+
 //--------------------------------------------------------------
 
 

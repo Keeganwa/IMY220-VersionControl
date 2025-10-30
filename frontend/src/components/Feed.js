@@ -8,11 +8,6 @@ function Feed() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // _____________________________________________________________
-  // Real Data Fetching from Backend
-  // Replaces dummy data with actual API calls to get projects
-  // Fetches diferent feeds based on selected tab
-  // _____________________________________________________________
   const fetchProjects = async (feedType) => {
     setIsLoading(true);
     setError(null);
@@ -33,14 +28,13 @@ function Feed() {
     }
   };
 
-  // Load projects when component mounts or tab changes
+
   useEffect(() => {
     fetchProjects(activeTab);
   }, [activeTab]);
 
   const handleTabChange = (newTab) => {
     setActiveTab(newTab);
-    // fetchProjects will be called by useEffect when activeTab changes
   };
 //--------------------------------------------------------------
 

@@ -41,19 +41,19 @@ function ProfilePage() {
     setError(null);
 
     try {
-      // Fetch user profile
+   
       const userResponse = await userAPI.getUserById(id);
       if (userResponse.success) {
         setProfile(userResponse.user);
       }
 
-      // Fetch user activities
+      
       const activitiesResponse = await activityAPI.getUserActivities(id, 10);
       if (activitiesResponse.success) {
         setUserActivities(activitiesResponse.activities);
       }
 
-      // Extract projects from profile data
+   
       if (userResponse.success && userResponse.user) {
         const allProjects = [
           ...(userResponse.user.ownedProjects || []),
@@ -73,8 +73,8 @@ function ProfilePage() {
   const handleCreateProject = async (projectData) => {
     console.log('Project created:', projectData);
     setShowCreateProject(false);
+
     
-    // Refresh profile data to include new project
     try {
       const userResponse = await userAPI.getUserById(id);
       if (userResponse.success) {
@@ -146,16 +146,16 @@ function ProfilePage() {
 
     try {
       const response = await userAPI.deleteOwnProfile();
-      
+
       if (response.success) {
         alert('Your profile has been deleted successfully.');
-        
-        // Clear local storage
+
+        // Clear 
         localStorage.removeItem('token');
         localStorage.removeItem('userId');
         localStorage.removeItem('username');
-        
-        // Redirect to splash page
+
+        // Redirect 
         navigate('/');
       }
     } catch (error) {
@@ -178,7 +178,7 @@ function ProfilePage() {
       <div>
         <Header />
         <main className="page-container">
-          <div style={{textAlign: 'center', padding: '40px', color: '#b0b0b0'}}>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#b0b0b0' }}>
             Loading profile...
           </div>
         </main>
@@ -191,10 +191,10 @@ function ProfilePage() {
       <div>
         <Header />
         <main className="page-container">
-          <div style={{textAlign: 'center', padding: '40px', color: '#ff6b6b'}}>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#ff6b6b' }}>
             <p>Error: {error}</p>
-            <button 
-              className="btn btn-secondary" 
+            <button
+              className="btn btn-secondary"
               onClick={() => window.location.reload()}
             >
               Try Again
@@ -210,7 +210,7 @@ function ProfilePage() {
       <div>
         <Header />
         <main className="page-container">
-          <div style={{textAlign: 'center', padding: '40px', color: '#ff6b6b'}}>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#ff6b6b' }}>
             User not found
           </div>
         </main>
@@ -222,7 +222,7 @@ function ProfilePage() {
   const isLimitedProfile = profile && !isOwnProfile && !isFriend;
 
   // _____________________________________________________________
-  // RENDER: Limited Profile (Non-Friends)
+  //  Limited  
   // _____________________________________________________________
   if (isLimitedProfile) {
     return (
@@ -232,14 +232,35 @@ function ProfilePage() {
           <div className="profile-container">
             <aside className="profile-sidebar">
               <div className="profile-avatar">
-                <svg viewBox="0 0 24 24" fill="#666">
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
+                {profile.profileImage ? (
+                  <img
+                    src={`http://localhost:5000${profile.profileImage}`}
+                    alt={profile.username}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      borderRadius: '50%'
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="#666" style="width: 100%; height: 100%;">
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+          </svg>
+        `;
+                    }}
+                  />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="#666">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                  </svg>
+                )}
               </div>
-              
+
               <div className="profile-info">
                 <h2>{profile.username}</h2>
-                
+
                 <div style={{
                   padding: '20px',
                   backgroundColor: '#2a2a2a',
@@ -247,13 +268,13 @@ function ProfilePage() {
                   marginTop: '20px',
                   textAlign: 'center'
                 }}>
-                  <p style={{color: '#888', marginBottom: '15px'}}>
+                  <p style={{ color: '#888', marginBottom: '15px' }}>
                     This profile is private. Send a friend request to view full details.
                   </p>
-                  <button 
+                  <button
                     className="btn btn-secondary"
                     onClick={handleSendFriendRequest}
-                    style={{width: '100%'}}
+                    style={{ width: '100%' }}
                   >
                     Send Friend Request
                   </button>
@@ -267,8 +288,8 @@ function ProfilePage() {
                 padding: '60px 20px',
                 color: '#888'
               }}>
-                <svg 
-                  viewBox="0 0 24 24" 
+                <svg
+                  viewBox="0 0 24 24"
                   fill="currentColor"
                   style={{
                     width: '80px',
@@ -277,12 +298,12 @@ function ProfilePage() {
                     opacity: 0.3
                   }}
                 >
-                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
                 </svg>
-                <h3 style={{color: '#b0b0b0', marginBottom: '10px'}}>
+                <h3 style={{ color: '#b0b0b0', marginBottom: '10px' }}>
                   Private Profile
                 </h3>
-                <p style={{color: '#666'}}>
+                <p style={{ color: '#666' }}>
                   Become friends with {profile.username} to see their projects and activity
                 </p>
               </div>
@@ -294,7 +315,7 @@ function ProfilePage() {
   }
 
   // _____________________________________________________________
-  // RENDER: Full Profile (Own Profile or Friends)
+  // Full  
   // _____________________________________________________________
   return (
     <div>
@@ -303,14 +324,36 @@ function ProfilePage() {
         <div className="profile-container">
           <aside className="profile-sidebar">
             <div className="profile-avatar">
-              <svg viewBox="0 0 24 24" fill="#666">
-                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-              </svg>
+              {profile.profileImage ? (
+                <img
+                  src={`http://localhost:5000${profile.profileImage}`}
+                  alt={profile.username}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    borderRadius: '50%'
+                  }}
+                  onError={(e) => {
+                    console.error('Failed to load image:', e.target.src);
+                    e.target.style.display = 'none';
+                    e.target.parentElement.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="#666" style="width: 100%; height: 100%;">
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+          </svg>
+        `;
+                  }}
+                />
+              ) : (
+                <svg viewBox="0 0 24 24" fill="#666">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                </svg>
+              )}
             </div>
-            
+
             <div className="profile-info">
               <h2>{profile.username}</h2>
-              
+
               <div className="profile-details">
                 <h3>Details</h3>
                 <div className="profile-detail-item">
@@ -324,8 +367,8 @@ function ProfilePage() {
                 <div className="profile-detail-item">
                   <strong>Friends:</strong>
                   <span>
-                    {profile.friends?.length > 0 
-                      ? `${profile.friends.length} friends` 
+                    {profile.friends?.length > 0
+                      ? `${profile.friends.length} friends`
                       : 'No friends yet'
                     }
                   </span>
@@ -339,14 +382,14 @@ function ProfilePage() {
               <div className="profile-actions">
                 {isOwnProfile ? (
                   <>
-                    <button 
-                      className="btn btn-secondary" 
+                    <button
+                      className="btn btn-secondary"
                       onClick={() => setIsEditing(!isEditing)}
                     >
                       {isEditing ? 'Cancel Edit' : 'Edit Profile'}
                     </button>
-                    
-                    <button 
+
+                    <button
                       className="btn btn-secondary"
                       onClick={() => setShowFriendsModal(true)}
                     >
@@ -354,7 +397,7 @@ function ProfilePage() {
                     </button>
 
                     {profile.friendRequests && profile.friendRequests.length > 0 && (
-                      <button 
+                      <button
                         className="btn btn-primary"
                         onClick={() => setShowRequestsModal(true)}
                         style={{
@@ -367,8 +410,8 @@ function ProfilePage() {
                         Friend Requests ({profile.friendRequests.length})
                       </button>
                     )}
-                    
-                    <button 
+
+                    <button
                       className="btn btn-primary"
                       onClick={handleDeleteProfile}
                       style={{
@@ -378,18 +421,18 @@ function ProfilePage() {
                     >
                       Delete Profile
                     </button>
-                    
-                    <button 
-                      className="btn btn-secondary" 
+
+                    <button
+                      className="btn btn-secondary"
                       onClick={() => setShowCreateProject(!showCreateProject)}
                     >
                       Create New Project
                     </button>
                   </>
                 ) : (
-                  <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {!isFriend && (
-                      <button 
+                      <button
                         className="btn btn-secondary"
                         onClick={handleSendFriendRequest}
                       >
@@ -397,10 +440,10 @@ function ProfilePage() {
                       </button>
                     )}
                     {isFriend && (
-                      <button 
+                      <button
                         className="btn btn-primary"
                         onClick={handleUnfriend}
-                        style={{backgroundColor: '#ff6b6b', borderColor: '#ff6b6b'}}
+                        style={{ backgroundColor: '#ff6b6b', borderColor: '#ff6b6b' }}
                       >
                         Unfriend
                       </button>
@@ -413,7 +456,7 @@ function ProfilePage() {
 
           <div className="profile-main">
             {isEditing && isOwnProfile && (
-              <EditProfile 
+              <EditProfile
                 user={profile}
                 onClose={() => setIsEditing(false)}
                 onSave={(updatedUser) => {
@@ -424,7 +467,7 @@ function ProfilePage() {
             )}
 
             {showCreateProject && isOwnProfile && (
-              <CreateProject 
+              <CreateProject
                 onClose={() => setShowCreateProject(false)}
                 onSubmit={handleCreateProject}
               />
@@ -432,32 +475,32 @@ function ProfilePage() {
 
             {!showCreateProject && !isEditing && (
               <>
-                <div style={{marginBottom: '30px'}}>
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                    <h2 style={{color: '#d4ff00', fontSize: '28px'}}>
+                <div style={{ marginBottom: '30px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h2 style={{ color: '#d4ff00', fontSize: '28px' }}>
                       {isOwnProfile ? 'Your Projects' : `${profile.username}'s Projects`}
                     </h2>
                     {isOwnProfile && (
-                      <button 
-                        className="btn btn-secondary" 
+                      <button
+                        className="btn btn-secondary"
                         onClick={() => setShowCreateProject(true)}
                       >
                         Create New Project
                       </button>
                     )}
                   </div>
-                  
-                  <div style={{display: 'grid', gap: '20px'}}>
+
+                  <div style={{ display: 'grid', gap: '20px' }}>
                     {userProjects.length === 0 ? (
-                      <div style={{textAlign: 'center', padding: '40px', color: '#888'}}>
+                      <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>
                         {isOwnProfile ? 'You haven\'t created any projects yet.' : 'This user has no public projects.'}
                       </div>
                     ) : (
                       userProjects.map(project => (
-                        <div key={project._id} style={{position: 'relative'}}>
+                        <div key={project._id} style={{ position: 'relative' }}>
                           <ProjectPreview project={project} />
                           {isOwnProfile && project.creator === currentUserId && (
-                            <button 
+                            <button
                               className="btn btn-primary"
                               style={{
                                 position: 'absolute',
@@ -482,7 +525,7 @@ function ProfilePage() {
                 <div className="activity-feed">
                   <h3>Recent Activity</h3>
                   {userActivities.length === 0 ? (
-                    <div style={{color: '#888', padding: '20px', textAlign: 'center'}}>
+                    <div style={{ color: '#888', padding: '20px', textAlign: 'center' }}>
                       No recent activity
                     </div>
                   ) : (
@@ -498,7 +541,7 @@ function ProfilePage() {
                         {activity.project && (
                           <span> in project <strong>{activity.project.name}</strong></span>
                         )}
-                        <div style={{fontSize: '12px', color: '#666', marginTop: '4px'}}>
+                        <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
                           {formatDate(activity.createdAt)}
                         </div>
                       </div>
@@ -510,16 +553,16 @@ function ProfilePage() {
           </div>
         </div>
 
-        {/* Modals */}
+       
         {showFriendsModal && (
-          <FriendsModal 
-            userId={id} 
-            onClose={() => setShowFriendsModal(false)} 
+          <FriendsModal
+            userId={id}
+            onClose={() => setShowFriendsModal(false)}
           />
         )}
 
         {showRequestsModal && (
-          <FriendRequests 
+          <FriendRequests
             onClose={() => setShowRequestsModal(false)}
             onUpdate={fetchUserData}
           />

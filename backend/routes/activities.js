@@ -9,7 +9,7 @@ const { auth } = require('../middleware/auth');
 const router = express.Router();
 
 // _____________________________________________________________
-//  Activities Feed
+//  Feed
 // GET /api/activities 
 // _____________________________________________________________
 router.get('/', auth, async (req, res) => {
@@ -158,6 +158,11 @@ router.post('/', auth, async (req, res) => {
   }
 });
 //--------------------------------------------------------------
+
+// _____________________________________________________________
+//Search Activities
+// GET /api/activities/search
+// _____________________________________________________________
 router.get('/search', auth, async (req, res) => {
   try {
     const { query } = req.query;
@@ -169,9 +174,9 @@ router.get('/search', auth, async (req, res) => {
       });
     }
 
-    // Search activities by message (check-in messages)
+   
     const activities = await Activity.find({
-      message: { $regex: query, $options: 'i' } // Case-insensitive search
+      message: { $regex: query, $options: 'i' }
     })
       .populate('user', 'username email')
       .populate('project', 'name description image tags')

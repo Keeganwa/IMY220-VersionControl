@@ -1,14 +1,12 @@
-
 const mongoose = require('mongoose');
 
 const activitySchema = new mongoose.Schema({
-  // User whoperformed the activty
+  // User 
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  // Type of activty 
   action: {
     type: String,
     required: true,
@@ -22,13 +20,15 @@ const activitySchema = new mongoose.Schema({
       'created_project',
       'joined_project',
       'left_project',
-    'transferred_ownership'
+      'transferred_ownership',
+      'updated_project',
+      'deleted_project',
+      'added_collaborator',
+      'removed_collaborator',
+      'uploaded_file',
+      'deleted_file'
     ]
   },
-
-
-
-
 
   project: {
     type: mongoose.Schema.Types.ObjectId,
@@ -36,13 +36,10 @@ const activitySchema = new mongoose.Schema({
     required: false
   },
 
-
-
   fileName: {
     type: String,
     required: false
   },
-
 
   message: {
     type: String,
@@ -56,29 +53,31 @@ const activitySchema = new mongoose.Schema({
     maxlength: 200
   }
 }, {
-  timestamps: true // createdAt and updatedAt 
+  timestamps: true
 });
+
 //--------------------------------------------------------------
 
-
-
-
-
 // Activity Index
-
 activitySchema.index({ user: 1, createdAt: -1 });
-   activitySchema.index({ project: 1, createdAt: -1 });
- activitySchema.index({ action: 1, createdAt: -1 });
+activitySchema.index({ project: 1, createdAt: -1 });
+activitySchema.index({ action: 1, createdAt: -1 });
 
-
+activitySchema.pre(/^find/, function(next) {
+  this.populate({
+    path: 'project',
+    select: 'name image tags creator'
+  }).populate({
+    path: 'user',
+    select: 'username email'
+  });
+  next();
+});
 
 // _____________________________________________________________
 // Activity Helper Methods
 // _____________________________________________________________
 
-
-
-// Create file-act
 activitySchema.statics.createFileActivity = function(userId, action, projectId, fileName, details = '') {
   return this.create({
     user: userId,
@@ -89,9 +88,6 @@ activitySchema.statics.createFileActivity = function(userId, action, projectId, 
   });
 };
 
-
-
-// Create check-in 
 activitySchema.statics.createCheckInActivity = function(userId, projectId, message, fileName = '') {
   return this.create({
     user: userId,

@@ -76,7 +76,10 @@ function DiscussionBoard({ projectId }) {
     <div className="discussion-board">
       <h3 style={{color: '#d4ff00', marginBottom: '20px'}}>Discussion Board</h3>
 
-      {/* New Message Form */}
+
+
+
+      {/* New Msg */}
       <form onSubmit={handleSubmit} style={{marginBottom: '30px'}}>
         {replyTo && (
           <div style={{
@@ -120,7 +123,12 @@ function DiscussionBoard({ projectId }) {
         </button>
       </form>
 
-      {/* Discussion List */}
+
+
+
+
+
+      {/*  Lis */}
       {discussions.length === 0 ? (
         <div style={{textAlign: 'center', padding: '40px', color: '#888'}}>
           No discussions yet. Be the first to comment!
@@ -181,6 +189,9 @@ function DiscussionBoard({ projectId }) {
                 >
                   Reply
                 </button>
+
+
+
 
                 {/* Replies */}
                 {discussions

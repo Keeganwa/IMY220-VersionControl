@@ -39,7 +39,7 @@ function FriendRequests({ onClose, onUpdate }) {
 
   const handleReject = async (userId) => {
     try {
-      // Remove from friend requests (we'll use unfriend endpoint for now)
+     
       await userAPI.unfriend(userId);
       alert('Friend request rejected');
       fetchFriendRequests();
@@ -95,7 +95,7 @@ function FriendRequests({ onClose, onUpdate }) {
               height: '30px'
             }}
           >
-            ×
+            x
           </button>
         </div>
 

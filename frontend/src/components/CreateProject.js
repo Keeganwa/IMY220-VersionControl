@@ -37,19 +37,23 @@ function CreateProject({ onClose, onSubmit }) {
 
   // _____________________________________________________________
   // Handle Image Upload with Validation
-  // _____________________________________________________________
+  // ____________________________
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     
     if (file) {
-      // Check file size (5MB)
+      
+      
+      //size
       if (file.size > 5 * 1024 * 1024) {
         alert('Image size must be less than 5MB');
         e.target.value = '';
         return;
       }
 
-      // Check file type
+     
+
+
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
         e.target.value = '';
@@ -58,7 +62,7 @@ function CreateProject({ onClose, onSubmit }) {
 
       setImageFile(file);
       
-      // Create preview
+      // preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -68,12 +72,12 @@ function CreateProject({ onClose, onSubmit }) {
   };
 
   // _____________________________________________________________
-  // Handle Project Files Upload (Multiple Files)
+  // Handle Project Files Upload
   // _____________________________________________________________
   const handleProjectFilesChange = (e) => {
     const files = Array.from(e.target.files);
 
-    // Validate individual file sizes (max 50MB each)
+ 
     const oversizedFiles = files.filter(file => file.size > 50 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       alert(`Some files exceed 50MB limit: ${oversizedFiles.map(f => f.name).join(', ')}`);
@@ -91,7 +95,7 @@ function CreateProject({ onClose, onSubmit }) {
       [name]: type === 'checkbox' ? checked : value
     }));
     
-    // Clear error when user starts typing
+    // Clear err
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -135,7 +139,7 @@ function CreateProject({ onClose, onSubmit }) {
     setIsLoading(true);
 
     try {
-      // Use FormData for file upload
+      //  FormData 
       const formData = new FormData();
       formData.append('name', projectData.name);
       formData.append('description', projectData.description);
@@ -143,19 +147,19 @@ function CreateProject({ onClose, onSubmit }) {
       formData.append('version', projectData.version);
       formData.append('isPublic', projectData.isPublic);
 
-      // Convert comma-separated tags to array and stringify
+     
       const tagsArray = projectData.tags
         .split(',')
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
       formData.append('tags', JSON.stringify(tagsArray));
 
-      // Append image if exists
+      //  image 
       if (imageFile) {
         formData.append('image', imageFile);
       }
 
-      // Append all project files
+
       projectFiles.forEach(file => {
         formData.append('files', file);
       });

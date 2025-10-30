@@ -8,19 +8,17 @@ function ProjectPreview({ project }) {
     navigate(`/project/${project._id}`);
   };
 
-  // _____________________________________________________________
-  // Handle Tag Click - Search by Programming Language
-  // _____________________________________________________________
+  
   const handleTagClick = (tag, e) => {
     e.stopPropagation(); // Prevent project card click
     navigate(`/home?search=${encodeURIComponent(tag)}`);
   };
 
   // _____________________________________________________________
-  // Real Project Data Display
+  // data dispay
   // _____________________________________________________________
   
-  // Format date for display
+
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown';
     
@@ -40,18 +38,17 @@ function ProjectPreview({ project }) {
     }
   };
 
-  // Get contributor count
   const getContributorCount = () => {
     const collaborators = project.collaborators?.length || 0;
-    return collaborators + 1; // +1 for the creator
+    return collaborators + 1;
   };
 
-  // Get file count
+
   const getFileCount = () => {
     return project.files?.length || 0;
   };
 
-  // Handle missing project data gracefully
+
   if (!project) {
     return (
       <article className="project-card" style={{opacity: 0.5}}>
@@ -62,7 +59,7 @@ function ProjectPreview({ project }) {
 
   return (
     <article className="project-card" onClick={handleClick}>
-      {/* Project Image */}
+      {/* Project img */}
       {project.image && (
         <div style={{
           width: '100%',
@@ -97,7 +94,9 @@ function ProjectPreview({ project }) {
         {project.description || 'No description available.'}
       </p>
       
-      {/* Display clickable hashtags */}
+      
+
+
       {project.tags && project.tags.length > 0 && (
         <div className="project-tags">
           {project.tags.map((tag, index) => (
@@ -139,7 +138,9 @@ function ProjectPreview({ project }) {
         )}
       </div>
       
-      {/* Show privacy status */}
+    
+
+
       <div style={{marginTop: '10px'}}>
         <span style={{
           fontSize: '12px',

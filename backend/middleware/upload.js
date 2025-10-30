@@ -2,7 +2,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Create uploads directory if it doesn't exist
+// Create uploads directory
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -20,7 +20,7 @@ if (!fs.existsSync(projectImagesDir)) {
 }
 
 // _____________________________________________________________
-// Storage Configuration for Project Files
+// Stor for Project Files
 // _____________________________________________________________
 const projectFileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -33,7 +33,7 @@ const projectFileStorage = multer.diskStorage({
 });
 
 // _____________________________________________________________
-// Storage Configuration for Project Images
+// Stor Configuration img
 // _____________________________________________________________
 const projectImageStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -46,7 +46,7 @@ const projectImageStorage = multer.diskStorage({
 });
 
 // _____________________________________________________________
-// File Filter for Images (5MB limit)
+// File Filter 
 // _____________________________________________________________
 const imageFileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|gif|webp/;
@@ -61,22 +61,21 @@ const imageFileFilter = (req, file, cb) => {
 };
 
 // _____________________________________________________________
-// Multer Upload Configurations
+// Multer Upload 
 // _____________________________________________________________
 
-// For project files (multiple files, any type, unlimited count)
 const uploadProjectFiles = multer({
   storage: projectFileStorage,
   limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB per file
+    fileSize: 50 * 1024 * 1024 
   }
-}).array('files'); // No limit on count
+}).array('files'); 
 
-// For project images (single image, 5MB max)
+// For project images <5mb
 const uploadProjectImage = multer({
   storage: projectImageStorage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
+    fileSize: 5 * 1024 * 1024 
   },
   fileFilter: imageFileFilter
 }).single('image');

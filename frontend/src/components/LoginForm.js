@@ -14,14 +14,14 @@ function LoginForm() {
   const validateForm = () => {
     const newErrors = {};
     
-    // Email validation
+    // Email valid
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email is invalid';
     }
     
-    // Password validation
+    // Password valid
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 6) {
@@ -48,9 +48,7 @@ function LoginForm() {
   };
 
   // _____________________________________________________________
-  //  API Login Integration
-  // Connects to backend 
-  // Stores JWT token 
+ 
   // _____________________________________________________________
   const handleSubmit = async (e) => {
     e.preventDefault();

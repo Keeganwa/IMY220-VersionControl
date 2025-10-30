@@ -18,38 +18,35 @@ function SignupForm() {
   const validateForm = () => {
     const newErrors = {};
     
-    // Username validation
+    
     if (!formData.username) {
       newErrors.username = 'Username is required';
     } else if (formData.username.length < 3) {
       newErrors.username = 'Username must be at least 3 characters';
     }
     
-    // Email validation
+  
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email is invalid';
     }
     
-    // Password validation
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
     }
     
-    // Confirm password validation
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
     
-    // Date of birth validation
     if (!formData.dateOfBirth) {
       newErrors.dateOfBirth = 'Date of birth is required';
     }
     
-    // Occupation validation
+
     if (!formData.occupation) {
       newErrors.occupation = 'Occupation is required';
     }
@@ -74,7 +71,7 @@ function SignupForm() {
   };
 
   // _____________________________________________________________
-  //  API Registration Integration with Auto-Login
+  //  API 
   // _____________________________________________________________
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -90,12 +87,12 @@ function SignupForm() {
       const response = await authAPI.signup(formData);
       
       if (response.success) {
-        // Store auth data
+       
         localStorage.setItem('token', response.token);
         localStorage.setItem('userId', response.user._id);
         localStorage.setItem('username', response.user.username);
         
-        // Auto-login: redirect to home page
+        // Auto-login
         window.location.href = '/home';
       }
     } catch (error) {

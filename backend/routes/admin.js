@@ -1,7 +1,6 @@
 // _____________________________________________________________
 // Admin Routes
-// _____________________________________________________________
-
+// ________________________
 const express = require('express');
 const User = require('../models/User');
 const Project = require('../models/Project');
@@ -11,7 +10,7 @@ const { auth } = require('../middleware/auth');
 const router = express.Router();
 
 // _____________________________________________________________
-// Admin Middleware - Check if user is admin
+// Admin check
 // _____________________________________________________________
 const isAdmin = async (req, res, next) => {
   try {
@@ -36,7 +35,7 @@ const isAdmin = async (req, res, next) => {
 // _____________________________________________________________
 // Get All Users (Admin)
 // GET /api/admin/users
-// _____________________________________________________________
+// ____________________________________________
 router.get('/users', auth, isAdmin, async (req, res) => {
   try {
     const users = await User.find()
@@ -59,7 +58,7 @@ router.get('/users', auth, isAdmin, async (req, res) => {
 // _____________________________________________________________
 // Delete User (Admin)
 // DELETE /api/admin/users/:id
-// _____________________________________________________________
+// ____________________________________
 router.delete('/users/:id', auth, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -70,8 +69,7 @@ router.delete('/users/:id', auth, isAdmin, async (req, res) => {
         message: 'User not found'
       });
     }
-
-    // Don't allow deleting yourself
+//DELETE SELF GUARD
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({
         success: false,
@@ -79,28 +77,27 @@ router.delete('/users/:id', auth, isAdmin, async (req, res) => {
       });
     }
 
-    // Delete user's projects
     await Project.deleteMany({ creator: user._id });
 
-    // Remove user from collaborators
+   
     await Project.updateMany(
       { collaborators: user._id },
       { $pull: { collaborators: user._id } }
     );
 
-    // Delete user's activities
+    // Delete user's activities--------------------
     await Activity.deleteMany({ user: user._id });
 
-    // Delete user's discussions
+    // Delete user's discussions----------------------
     await Discussion.deleteMany({ user: user._id });
 
-    // Remove from friends lists
+    // Remove from friends lists--------------------------
     await User.updateMany(
       { friends: user._id },
       { $pull: { friends: user._id } }
     );
 
-    // Delete user
+    // Delete user----------------------------------------
     await User.findByIdAndDelete(req.params.id);
 
     res.json({
@@ -132,7 +129,7 @@ router.delete('/projects/:id', auth, isAdmin, async (req, res) => {
       });
     }
 
-    // Remove from users' project lists
+   
     await User.findByIdAndUpdate(project.creator, {
       $pull: { ownedProjects: project._id }
     });
@@ -142,7 +139,7 @@ router.delete('/projects/:id', auth, isAdmin, async (req, res) => {
       { $pull: { sharedProjects: project._id } }
     );
 
-    // Delete related data
+   
     await Activity.deleteMany({ project: project._id });
     await Discussion.deleteMany({ project: project._id });
     await Project.findByIdAndDelete(req.params.id);

@@ -1,7 +1,7 @@
 // _____________________________________________________
 //JWT Authentication Middleware
 // Protects routes by verifying JWT tokens and extracting user info
-// Ensures only authenticated users can acces protected endpoints
+// Ensures only authenticated users can access protected endpoints
 // ___________________________________________________________________
 
 const jwt = require('jsonwebtoken');
@@ -14,7 +14,7 @@ const auth = async (req, res, next) => {
     if (!authHeader) {
       return res.status(401).json({ 
         success: false, 
-        message: 'No token provided, acces denied' 
+        message: 'No token provided, access denied' 
       });
     }
 
@@ -23,19 +23,14 @@ const auth = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({ 
         success: false, 
-        message: 'Invalid token format, acces denied' 
+        message: 'Invalid token format, access denied' 
       });
     }
-
-//--------------------------------------------------------------
-
-
 
     // _____________________________________________________________________
     //  Token Verification Process
     // Verify JWT token and extract user information
     // ______________________________________________________________
-    
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id).select('-password');
@@ -48,8 +43,6 @@ const auth = async (req, res, next) => {
     }
 
     req.user = user;
-
-
     next(); 
   } catch (error) {
     console.error('Auth middleware error:', error.message);
@@ -63,7 +56,7 @@ const auth = async (req, res, next) => {
     } else if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ 
         success: false, 
-        message: 'Token has expird' 
+        message: 'Token has expired' 
       });
     } else {
       return res.status(500).json({ 
@@ -72,10 +65,7 @@ const auth = async (req, res, next) => {
       });
     }
   }
-};///--------------------------------------------------------------
-
-
-
+};
 
 //_____________
 //Helpers
@@ -101,12 +91,12 @@ const optionalAuth = async (req, res, next) => {
     next();
     
   } catch (error) {
-
     req.user = null;
     next();
   }
 };
-//--------------------------------------------------------------
 
 
-module.exports = { auth, optionalAuth };
+module.exports = auth;
+module.exports.auth = auth;
+module.exports.optionalAuth = optionalAuth;

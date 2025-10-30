@@ -79,7 +79,7 @@ function SplashPage() {
       <div className="splash-content">
         {!showLogin && !showSignup && (
           <>
-            {/* Cloud image with better blending */}
+            
             <div className="cloud-image" style={{
               position: 'absolute',
               top: '180px',
@@ -118,7 +118,7 @@ function SplashPage() {
               </svg>
             </div>
 
-            {/* Main content area with better spacing */}
+            
             <div style={{
               maxWidth: '550px',
               marginTop: '120px',
@@ -246,7 +246,7 @@ function SplashPage() {
                 style={{color: '#888', cursor: 'pointer', textDecoration: 'underline'}}
                 onClick={handleBackToHome}
               >
-                ← Back to home
+                Back to home
               </span>
             </p>
           </div>

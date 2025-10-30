@@ -1,7 +1,6 @@
 // _____________________________________________________________
 // Discussion Board Routes
-// _____________________________________________________________
-
+// ________________________
 const express = require('express');
 const Discussion = require('../models/Discussion');
 const Project = require('../models/Project');
@@ -16,7 +15,7 @@ router.get('/project/:projectId', auth, async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    // Check if project exists
+    // exists
     const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({
@@ -53,7 +52,7 @@ router.post('/', auth, async (req, res) => {
   try {
     const { project, message, parentComment } = req.body;
 
-    // Check if project exists
+    // exists
     const projectExists = await Project.findById(project);
     if (!projectExists) {
       return res.status(404).json({
@@ -105,7 +104,7 @@ router.put('/:id', auth, async (req, res) => {
       });
     }
 
-    // Only creator can edit
+    // Only creator 
     if (discussion.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -150,7 +149,7 @@ router.delete('/:id', auth, async (req, res) => {
       });
     }
 
-    // Only creator can delete
+    // Only creator 
     if (discussion.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -158,10 +157,10 @@ router.delete('/:id', auth, async (req, res) => {
       });
     }
 
-    // Delete all replies to this comment
+ 
     await Discussion.deleteMany({ parentComment: discussion._id });
 
-    // Delete the comment itself
+    
     await Discussion.findByIdAndDelete(req.params.id);
 
     res.json({

@@ -1,18 +1,9 @@
-// _____________________________________________________________
-// User Model 
-// _____________________________________________________________
-
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-
-
-
-  // !!!
   username: {
     type: String,
-    required: [true, 'Username is requierd'],
+    required: [true, 'Username is required'],
     unique: true,
     trim: true,
     minlength: 3
@@ -29,11 +20,15 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Password is required'],
     minlength: 6
   },
-
-
-//!!!
-
-
+  profileImage: {
+    type: String,
+    default: null
+  },
+  bio: {
+    type: String,
+    default: '',
+    maxlength: 500
+  },
   dateOfBirth: {
     type: Date,
     required: true
@@ -42,28 +37,22 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
- 
   friends: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
-
-
   friendRequests: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
-
   ownedProjects: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project'
   }],
-
   sharedProjects: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project'
   }],
-
   isAdmin: {
     type: Boolean,
     default: false
@@ -72,39 +61,15 @@ const userSchema = new mongoose.Schema({
   timestamps: true 
 });
 
-// _____________________________________________________________
-//  Password Hashing 
 
-
-// _____________________________________________________________
-
-
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  // Hash  cost =12
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
-});
-
-//--------------------------------------------------------------
-
-
-
-
-// _____________________________________________________________
-// Password Validation
-
-// _____________________________________________________________
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+userSchema.methods.comparePassword = function(candidatePassword) {
+  return candidatePassword === this.password;
 };
 
 userSchema.methods.toJSON = function() {
   const user = this.toObject();
-  delete user.password; // Remove password in responce
+  delete user.password; 
   return user;
 };
 
-//--------------------------------------------------------------
 module.exports = mongoose.model('User', userSchema);

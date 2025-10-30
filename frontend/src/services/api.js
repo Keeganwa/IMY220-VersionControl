@@ -126,7 +126,7 @@ export const userAPI = {
 // _____________________________________________________________
 
 export const projectAPI = {
-  // Get projects with optional feed type and search
+  // Get projects 
   getProjects: async (feed = 'global', searchTerm = '') => {
     const params = new URLSearchParams({
       feed,
@@ -135,12 +135,12 @@ export const projectAPI = {
     return await makeRequest(`/projects?${params}`);
   },
 
-  // Get specific project
+  // Get  project
   getProjectById: async (projectId) => {
     return await makeRequest(`/projects/${projectId}`);
   },
 
-  // Create new project (with FormData for file upload)
+  // Create new
   createProject: async (projectData) => {
     const isFormData = projectData instanceof FormData;
     
@@ -149,6 +149,11 @@ export const projectAPI = {
       body: isFormData ? projectData : JSON.stringify(projectData)
     });
   },
+  relinquishOwnership: async (projectId) => {
+  return await makeRequest(`/projects/${projectId}/relinquish-ownership`, {
+    method: 'POST'
+  });
+},
 
   // Update project
   updateProject: async (projectId, projectData) => {
@@ -165,14 +170,14 @@ export const projectAPI = {
     });
   },
 
-  // Checkout project for editing
+  // Checkout 
   checkoutProject: async (projectId) => {
     return await makeRequest(`/projects/${projectId}/checkout`, {
       method: 'POST'
     });
   },
 
-  // Checkin project with changes
+  // Checkin 
   checkinProject: async (projectId, checkinData) => {
     return await makeRequest(`/projects/${projectId}/checkin`, {
       method: 'POST',
@@ -180,7 +185,7 @@ export const projectAPI = {
     });
   },
 
-  // Add collaborator to project
+  // Add collaborator 
   addCollaborator: async (projectId, userId) => {
     return await makeRequest(`/projects/${projectId}/collaborators`, {
       method: 'POST',
@@ -188,14 +193,14 @@ export const projectAPI = {
     });
   },
 
-  // Remove collaborator from project
+  // Remove collaborator
   removeCollaborator: async (projectId, userId) => {
     return await makeRequest(`/projects/${projectId}/collaborators/${userId}`, {
       method: 'DELETE'
     });
   },
 
-  // Download file
+  // Download fil
   downloadFile: async (projectId, fileName) => {
     return await makeRequest(`/projects/${projectId}/files/${encodeURIComponent(fileName)}`);
   },
@@ -214,19 +219,19 @@ export const projectAPI = {
 // _____________________________________________________________
 
 export const activityAPI = {
-  // Get activity feed (local or global)
+  // Get  feed
   getActivities: async (feed = 'global', limit = 50) => {
     const params = new URLSearchParams({ feed, limit: limit.toString() });
     return await makeRequest(`/activities?${params}`);
   },
 
-  // Get activities for specific project
+  // Get activities proj
   getProjectActivities: async (projectId, limit = 50) => {
     const params = new URLSearchParams({ limit: limit.toString() });
     return await makeRequest(`/activities/project/${projectId}?${params}`);
   },
 
-  // Get activities for specific user
+  // Get activities user
   getUserActivities: async (userId, limit = 50) => {
     const params = new URLSearchParams({ limit: limit.toString() });
     return await makeRequest(`/activities/user/${userId}?${params}`);
@@ -243,12 +248,12 @@ export const activityAPI = {
 // _____________________________________________________________
 
 export const discussionAPI = {
-  // Get discussions for a project
+  // Get discussions 
   getProjectDiscussions: async (projectId) => {
     return await makeRequest(`/discussions/project/${projectId}`);
   },
 
-  // Create new discussion/comment
+  // Create new 
   createDiscussion: async (discussionData) => {
     return await makeRequest('/discussions', {
       method: 'POST',
@@ -330,17 +335,16 @@ export const adminAPI = {
 // _____________________________________________________________
 
 export const apiUtils = {
-  // Check if user is logged in
   isAuthenticated: () => {
     return !!getAuthToken();
   },
 
-  // Get current user ID
+  
   getCurrentUserId: () => {
     return localStorage.getItem('userId');
   },
 
-  // Logout user
+  
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
@@ -348,7 +352,7 @@ export const apiUtils = {
     window.location.href = '/';
   },
 
-  // Check API health
+
   checkHealth: async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/health`);

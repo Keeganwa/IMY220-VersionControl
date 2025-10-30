@@ -9,4 +9,3 @@ GITHUB REPOSITORY:
 https://github.com/Keeganwa/IMY220-VersionControl
 
 Test the application at: http://localhost:4040
-Backend health check: http://localhost:5000/api/health

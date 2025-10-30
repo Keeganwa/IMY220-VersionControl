@@ -3,11 +3,13 @@ const router = express.Router();
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Activity = require('../models/Activity');
+const Discussion = require('../models/Discussion');
 const auth = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const archiver = require('archiver');
+
 const { uploadProjectFiles, handleMulterError, projectFilesDir, projectImagesDir } = require('../middleware/upload');
 
 // _____________________________________________________________
@@ -19,7 +21,6 @@ router.get('/', auth, async (req, res) => {
     const { feed, search } = req.query;
     let query = {};
 
-    // Apply search filter
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -28,7 +29,6 @@ router.get('/', auth, async (req, res) => {
       ];
     }
 
-    // Apply feed filter
     if (feed === 'local') {
       const user = await User.findById(req.user._id);
       const friendIds = user.friends || [];
@@ -39,9 +39,9 @@ router.get('/', auth, async (req, res) => {
     }
 
     const projects = await Project.find(query)
-      .populate('creator', 'username email')
-      .populate('collaborators', 'username email')
-      .populate('checkedOutBy', 'username email')
+      .populate('creator', 'username email profileImage')
+      .populate('collaborators', 'username email profileImage')
+      .populate('checkedOutBy', 'username email profileImage')
       .sort({ updatedAt: -1 });
 
     res.json({
@@ -65,10 +65,10 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const project = await Project.findById(req.params.id)
-      .populate('creator', 'username email')
-      .populate('collaborators', 'username email')
-      .populate('checkedOutBy', 'username email')
-      .populate('files.uploadedBy', 'username email');
+      .populate('creator', 'username email profileImage')
+      .populate('collaborators', 'username email profileImage')
+      .populate('checkedOutBy', 'username email profileImage')
+      .populate('files.uploadedBy', 'username email profileImage');
 
     if (!project) {
       return res.status(404).json({
@@ -111,13 +111,7 @@ router.post('/', auth, (req, res, next) => {
       }
     }),
     limits: {
-      fileSize: (req, file, cb) => {
-        if (file.fieldname === 'image') {
-          cb(null, 5 * 1024 * 1024);
-        } else {
-          cb(null, 50 * 1024 * 1024);
-        }
-      }
+      fileSize: 50 * 1024 * 1024
     },
     fileFilter: (req, file, cb) => {
       if (file.fieldname === 'image') {
@@ -200,7 +194,7 @@ router.post('/', auth, (req, res, next) => {
       details: `Created project: ${project.name}`
     });
 
-    await project.populate('creator', 'username email');
+    await project.populate('creator', 'username email profileImage');
 
     res.status(201).json({
       success: true,
@@ -221,9 +215,41 @@ router.post('/', auth, (req, res, next) => {
 // Update Project
 // PUT /api/projects/:id
 // _____________________________________________________________
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, (req, res, next) => {
+  const upload = multer({
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => {
+        cb(null, projectImagesDir);
+      },
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + '-' + file.originalname);
+      }
+    }),
+    limits: {
+      fileSize: 5 * 1024 * 1024
+    },
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = /jpeg|jpg|png|gif|webp/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      const mimetype = allowedTypes.test(file.mimetype);
+      if (mimetype && extname) {
+        return cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed'));
+      }
+    }
+  }).single('image');
+
+  upload(req, res, (err) => {
+    if (err) {
+      return handleMulterError(err, req, res, next);
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
-    const { name, description, tags, type, isPublic } = req.body;
+    let { name, description, tags, type, isPublic } = req.body;
     const project = await Project.findById(req.params.id);
 
     if (!project) {
@@ -240,12 +266,38 @@ router.put('/:id', auth, async (req, res) => {
       });
     }
 
+    let tagsArray = tags;
+    if (typeof tags === 'string') {
+      try {
+        tagsArray = JSON.parse(tags);
+      } catch (e) {
+        tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
+      }
+    }
+
     if (name) project.name = name;
     if (description) project.description = description;
-    if (tags) project.tags = tags;
+    if (tagsArray) project.tags = tagsArray;
     if (type) project.type = type;
-    if (isPublic !== undefined) project.isPublic = isPublic;
+    if (isPublic !== undefined) {
+      project.isPublic = isPublic === 'true' || isPublic === true;
+    }
 
+    if (req.file) {
+      if (project.image) {
+        const oldImagePath = path.join(__dirname, '..', project.image);
+        if (fs.existsSync(oldImagePath)) {
+          try {
+            fs.unlinkSync(oldImagePath);
+          } catch (err) {
+            console.error('Error deleting old image:', err);
+          }
+        }
+      }
+      project.image = `/uploads/images/${req.file.filename}`;
+    }
+
+    project.updatedAt = new Date();
     await project.save();
 
     await Activity.create({
@@ -254,6 +306,8 @@ router.put('/:id', auth, async (req, res) => {
       project: project._id,
       details: `Updated project: ${project.name}`
     });
+
+    await project.populate('creator collaborators checkedOutBy');
 
     res.json({
       success: true,
@@ -292,24 +346,32 @@ router.delete('/:id', auth, async (req, res) => {
       });
     }
 
-    // Delete project files from filesystem
     for (const file of project.files) {
       const filePath = path.join(__dirname, '..', file.path);
       if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+        try {
+          fs.unlinkSync(filePath);
+        } catch (err) {
+          console.error('Error deleting file:', err);
+        }
       }
     }
 
-    // Delete project image
     if (project.image) {
       const imagePath = path.join(__dirname, '..', project.image);
       if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
+        try {
+          fs.unlinkSync(imagePath);
+        } catch (err) {
+          console.error('Error deleting image:', err);
+        }
       }
     }
 
     await Project.findByIdAndDelete(req.params.id);
     await Activity.deleteMany({ project: req.params.id });
+    await Discussion.deleteMany({ project: req.params.id });
+    
     await User.updateMany(
       { $or: [{ ownedProjects: req.params.id }, { sharedProjects: req.params.id }] },
       { $pull: { ownedProjects: req.params.id, sharedProjects: req.params.id } }
@@ -429,24 +491,29 @@ router.post('/:id/checkin', auth, (req, res, next) => {
       });
     }
 
-    // REPLACE all files (delete old ones from filesystem)
-    for (const oldFile of project.files) {
-      const oldFilePath = path.join(__dirname, '..', oldFile.path);
-      if (fs.existsSync(oldFilePath)) {
-        fs.unlinkSync(oldFilePath);
+    if (req.files && req.files.length > 0) {
+      for (const oldFile of project.files) {
+        const oldFilePath = path.join(__dirname, '..', oldFile.path);
+        if (fs.existsSync(oldFilePath)) {
+          try {
+            fs.unlinkSync(oldFilePath);
+          } catch (err) {
+            console.error('Error deleting old file:', err);
+          }
+        }
       }
+
+      const newFiles = req.files.map(file => ({
+        name: file.originalname,
+        path: `/uploads/projects/${file.filename}`,
+        size: `${(file.size / 1024).toFixed(2)} KB`,
+        uploadedBy: req.user._id,
+        uploadedAt: new Date()
+      }));
+
+      project.files = newFiles;
     }
 
-    // Set new files (replaces old array)
-    const newFiles = req.files ? req.files.map(file => ({
-      name: file.originalname,
-      path: `/uploads/projects/${file.filename}`,
-      size: `${(file.size / 1024).toFixed(2)} KB`,
-      uploadedBy: req.user._id,
-      uploadedAt: new Date()
-    })) : [];
-
-    project.files = newFiles;
     project.checkedOutBy = null;
     project.version = version || project.version;
     project.updatedAt = new Date();
@@ -751,6 +818,76 @@ router.put('/:id/transfer-ownership', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error transferring ownership'
+    });
+  }
+});
+
+// _____________________________________________________________
+// Relinquish Ownership (Leave Own Project)
+// POST /api/projects/:id/relinquish-ownership
+// _____________________________________________________________
+router.post('/:id/relinquish-ownership', auth, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (project.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the project owner can relinquish ownership'
+      });
+    }
+
+    if (!project.collaborators || project.collaborators.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot relinquish ownership. You must have at least one collaborator to transfer ownership to, or delete the project instead.'
+      });
+    }
+
+    const newOwnerId = project.collaborators[0];
+    const oldOwnerId = project.creator;
+
+    project.creator = newOwnerId;
+    project.collaborators = project.collaborators.filter(
+      collab => collab.toString() !== newOwnerId.toString()
+    );
+    
+    await project.save();
+
+    await User.findByIdAndUpdate(oldOwnerId, {
+      $pull: { ownedProjects: project._id }
+    });
+
+    await User.findByIdAndUpdate(newOwnerId, {
+      $pull: { sharedProjects: project._id },
+      $push: { ownedProjects: project._id }
+    });
+
+    await Activity.create({
+      user: req.user._id,
+      action: 'transferred_ownership',
+      project: project._id,
+      details: `Relinquished ownership of project: ${project.name}`
+    });
+
+    res.json({
+      success: true,
+      message: 'Ownership relinquished successfully. You have left the project.',
+      newOwner: newOwnerId
+    });
+
+  } catch (error) {
+    console.error('Relinquish ownership error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error relinquishing ownership'
     });
   }
 });

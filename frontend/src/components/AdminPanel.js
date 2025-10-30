@@ -112,6 +112,9 @@ function AdminPanel() {
         Admin Panel
       </h2>
 
+
+
+
       {/* Tabs */}
       <div style={{
         display: 'flex',
@@ -158,7 +161,15 @@ function AdminPanel() {
         </div>
       ) : (
         <>
-          {/* Users Tab */}
+          
+          
+
+
+
+
+
+
+
           {activeTab === 'users' && (
             <div>
               <h3 style={{color: '#e0e0e0', marginBottom: '20px'}}>
@@ -245,7 +256,12 @@ function AdminPanel() {
             </div>
           )}
 
-          {/* Project Types Tab */}
+          
+
+
+
+
+
           {activeTab === 'types' && (
             <div>
               <h3 style={{color: '#e0e0e0', marginBottom: '20px'}}>

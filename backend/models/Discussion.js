@@ -1,11 +1,11 @@
-// _____________________________________________________________
+// ____________________________________________ _________________
 // Discussion Model
-// _____________________________________________________________
+// ________________________________________
 
 const mongoose = require('mongoose');
 
 const discussionSchema = new mongoose.Schema({
-  // Project this discussion belongs to
+
   project: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project',
@@ -19,26 +19,26 @@ const discussionSchema = new mongoose.Schema({
     required: true
   },
   
-  // Discussion message content
+  // Discussion msg
   message: {
     type: String,
     required: true,
     maxlength: 1000
   },
   
-  // Parent comment for replies (null if top-level comment)
+  // Parent cmt
   parentComment: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Discussion',
     default: null
   }
 }, {
-  timestamps: true // createdAt and updatedAt
+  timestamps: true 
 });
 
-// _____________________________________________________________
-// Indexes for Performance
-// _____________________________________________________________
+// _________________________
+// Indexes
+
 discussionSchema.index({ project: 1, createdAt: -1 });
 discussionSchema.index({ user: 1 });
 discussionSchema.index({ parentComment: 1 });
